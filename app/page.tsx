@@ -4,6 +4,7 @@
 import React from 'react';
 // Zakładamy, że komponent Sidebar jest w app/components/Sidebar.tsx
 import Sidebar from './components/Sidebar';
+import Link from 'next/link';
 
 // Wszystkie definicje ikon (CommentIcon, etc.) zostały usunięte.
 // Dane mockPosts zostały usunięte.
@@ -43,18 +44,18 @@ export default function HomePage() {
             </p>
             
             {/* Dodałem przycisk logowania dla wygody */}
-            <a 
+            <Link 
               href="/login" 
               className="mt-8 inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full transition-colors duration-200 text-lg"
             >
               Zaloguj się
-            </a>
+            </Link>
             
             <p className="text-sm text-gray-500 mt-6">
               Nie masz konta?{' '}
-              <a href="/register" className="text-blue-500 hover:underline">
+              <Link href="/register" className="text-blue-500 hover:underline">
                 Zarejestruj się
-              </a>
+              </Link>
             </p>
           </section>
 

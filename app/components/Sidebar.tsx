@@ -1,5 +1,6 @@
 import React from 'react';
 import Logo from './Logo';
+import Link from 'next/link';
 // USUNIĘTO IMPORT 'next/link', aby naprawić błąd
 
 // --- IKONY POTRZEBNE DLA SIDEBARA ---
@@ -44,27 +45,27 @@ export default function Sidebar() {
         {/* Przyciski nawigacyjne ZASTĄPIONE PRZEZ TAGI <a> */}
         
         {/* Link do strony głównej (jako <a>) */}
-        <a 
+        <Link 
           href="/"
           className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
         >
           <HomeIcon />
           <span className="text-xl font-bold">Posty</span>
-        </a>
+        </Link>
         
         {/* Link do strony logowania (jako <a>) */}
-        <a 
+        <Link 
           href="/login"
           className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
         >
           <ProfileIcon />
           <span className="text-xl font-bold">Login</span>
-        </a>
+        </Link>
         
         {/* Główny przycisk "Opublikuj" - pozostaje przyciskiem (button) */}
-        <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4">
+        <Link href="/editpost" className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4">
           Opublikuj
-        </button>
+        </Link>
       </nav>
     </aside>
   );

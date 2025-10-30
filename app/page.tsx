@@ -1,6 +1,6 @@
 // Plik: app/page.tsx (Główna strona)
 // Został oczyszczony zgodnie z prośbą.
-
+'use client'
 import React from 'react';
 // Zakładamy, że komponent Sidebar jest w app/components/Sidebar.tsx
 import Sidebar from './components/Sidebar';

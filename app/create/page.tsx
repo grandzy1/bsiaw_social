@@ -1,6 +1,6 @@
 // Plik: app/compose/post/page.tsx
 // Dedykowana strona do tworzenia/dodawania nowych postów.
-
+'use client'
 import React from 'react';
 import Sidebar from '../components/Sidebar';
 // Importujemy Sidebar ze ścieżką względną (o dwa poziomy wyżej)

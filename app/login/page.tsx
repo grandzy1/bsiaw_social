@@ -1,4 +1,5 @@
-import React from 'react';
+'use client'
+import React, { useState } from 'react';
 import Link from 'next/link'; // Importujemy Link do nawigacji
 import Logo from '../components/Logo';
 
@@ -10,6 +11,25 @@ import Logo from '../components/Logo';
  * Strona Logowania
  */
 export default function LoginPage() {
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Funkcja obsługująca wysłanie formularza
+  const handleSubmit = (event: any) => {
+    // Zapobiegamy domyślnej akcji przeglądarki (przeładowaniu strony)
+    event.preventDefault();
+    
+    // Tutaj mamy dostęp do danych z formularza
+    console.log('Dane logowania:');
+    console.log('Nazwa użytkownika:', username);
+    console.log('Hasło:', password);
+
+    // W tym miejscu docelowo znalazłaby się logika
+    // wysyłania danych do API w celu autentykacji
+    // np. await loginUser({ username, password });
+  };
+
   return (
     <main className="bg-white min-h-screen text-gray-900 flex items-center justify-center p-8">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-gray-200 shadow-md">
@@ -24,7 +44,7 @@ export default function LoginPage() {
         </h1>
 
         {/* Formularz logowania */}
-        <form className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label 
               htmlFor="username" 
@@ -35,8 +55,11 @@ export default function LoginPage() {
             <input 
               type="text" 
               id="username"
+              name="username"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="np. @anna_dev"
+              value={username} // Powiązanie wartości z stanem
+              onChange={(e) => setUsername(e.target.value)} // Aktualizacja stanu
             />
           </div>
 
@@ -50,8 +73,11 @@ export default function LoginPage() {
             <input 
               type="password" 
               id="password"
+              name="password"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
+              value={password} // Powiązanie wartości z stanem
+              onChange={(e) => setPassword(e.target.value)} // Aktualizacja stanu
             />
           </div>
 

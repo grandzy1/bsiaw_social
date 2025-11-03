@@ -2,7 +2,8 @@
 // Dedykowana strona do tworzenia/dodawania nowych postów.
 'use client'
 import React from 'react';
-import Sidebar from '../components/Sidebar';
+import Sidebar from '../../components/Sidebar';
+import { useParams } from 'next/navigation';
 // Importujemy Sidebar ze ścieżką względną (o dwa poziomy wyżej)
 // POPRAWIONA ŚCIEŻKA: Zakładamy, że folder 'components' jest w głównym folderze projektu (poza 'app')
 
@@ -46,6 +47,7 @@ const ComposeForm = () => {
  * Dedykowana strona do tworzenia nowego posta
  */
 export default function ComposePostPage() {
+  const params = useParams<{ id: string; }>()
   return (
     // Główny kontener strony
     <main className="bg-white min-h-screen text-gray-900">
@@ -60,7 +62,7 @@ export default function ComposePostPage() {
           
           {/* Nagłówek */}
           <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
-            <h1 className="text-xl font-bold p-4">Edytuj posta</h1>
+            <h1 className="text-xl font-bold p-4">Edytuj posta: {params.id}</h1>
           </header>
 
           {/* Formularz */}

@@ -2,8 +2,9 @@
 // Strona wyświetlająca szczegóły pojedynczego posta.
 'use client'
 import React from 'react';
-import Sidebar from '../components/Sidebar';
 import { useSearchParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import Sidebar from '@/app/components/Sidebar';
 // Poprawiona ścieżka importu (3 poziomy w górę do roota projektu)
 
 
@@ -54,12 +55,13 @@ const ReplyInput = () => {
  * Odbiera 'params' z dynamicznego segmentu URL '[id]'
  */
 export default function SinglePostPage() {
-    const searchParams = useSearchParams()
+   const params = useParams<{ id: string; }>()
  
-  const id = searchParams.get('id')
+  // console.log(params);
+  
   
   // Pobieramy ID posta bezpośrednio z parametrów URL
-  const postId = id;
+  // const postId = id;
 
   return (
     <main className="bg-white min-h-screen text-gray-900">
@@ -86,7 +88,7 @@ export default function SinglePostPage() {
 
             {/* Treść posta (zastąpiona przez ID) */}
             <p className="text-gray-900 text-2xl mt-1 mb-4 whitespace-pre-wrap break-all">
-              ID Posta: <span className="font-mono text-blue-600">{postId}</span>
+              ID Posta: <span className="font-mono text-blue-600">{params.id}</span>
             </p>
 
             {/* Data usunięta */}

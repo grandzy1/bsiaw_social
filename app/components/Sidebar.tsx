@@ -63,7 +63,7 @@ export default function Sidebar() {
         </Link>
         
         {/* Główny przycisk "Opublikuj" - pozostaje przyciskiem (button) */}
-        <Link href="/editpost" className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4">
+        <Link href="/create" className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4">
           Opublikuj
         </Link>
       </nav>

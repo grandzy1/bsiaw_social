@@ -1,0 +1,23 @@
+1. python -m venv .venv
+2. source .venv/bin/activate
+3. pip install -r requirements.txt
+4. z discorda pobierasz .env i wrzucasz do rootdira projektu (tam gdzie manage.py)
+opcja a (nie masz postgresa):
+zmieniasz to co jest w project_config/settings.py w DATABASES na:
+ DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3', 
+    }
+
+potem robisz:
+zeby dzialalo
+python manage.py migrate
+zeby miec dostep do /admin
+python manage.py createsuperuser
+
+opcja b (ustawiony postgres):
+https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-connection-settings
+
+zeby odpalic serwer:
+python manage.py runserver

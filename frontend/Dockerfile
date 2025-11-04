@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Zainstaluj zależności
-RUN npm ci
+RUN npm i
 
 # Skopiuj resztę aplikacji
 COPY . .

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPost } from '@/frontend/lib/api';
+import { createPost } from '@/lib/api';
 
 export default function NewPostForm() {
   const [content, setContent] = useState('');

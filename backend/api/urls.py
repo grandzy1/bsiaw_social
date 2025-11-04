@@ -4,10 +4,8 @@ from . import views
 app_name = "api"
 urlpatterns = [
         path("users/register/", views.register_user, name="register_user"),
-        path("/users/login/", views.login_user, name="login_user"),
+        path("users/login/", views.login_user, name="login_user"),
         path('posts/', views.post_list, name='post-list'),
         # path("/posts/create/<int:id>",...,...),
         # path("/posts/edit/<int:id>",...,...),
-        
-
         ]

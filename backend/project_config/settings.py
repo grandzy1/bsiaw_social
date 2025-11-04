@@ -28,7 +28,11 @@ SECRET_KEY = os.environ['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Wczytaj string ze zmiennej środowiskowej, domyślnie 'localhost,127.0.0.1'
+allowed_hosts_string = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+
+# Podziel string na listę
+ALLOWED_HOSTS = allowed_hosts_string.split(',')
 
 
 # Application definition

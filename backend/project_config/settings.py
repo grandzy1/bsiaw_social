@@ -86,11 +86,11 @@ WSGI_APPLICATION = 'project_config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'users_db',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-        'USER': 'admin',
-        'PASSWORD': '123',
+        'NAME': os.environ.get('DB_NAME', 'ycom_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('DB_HOST', 'db'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 

@@ -1,7 +1,11 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Pliki środowiskowe - Nigdy nie commituj sekretów!
+# Zawsze twórz plik .env.example jako wzór.
+.env*
+!.env.example
 
-# dependencies
-frontend/node_modules
+# Zależności
+/node_modules
+/backend/venv/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,32 +14,44 @@ frontend/node_modules
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js / Frontend
 /.next/
 /out/
-
-# production
 /build
+*.tsbuildinfo
+# next-env.d.ts jest generowany automatycznie
+next-env.d.ts
 
-# misc
+# Django / Python
+__pycache__/
+*.pyc
+*.log
+# Jeśli kiedykolwiek użyjesz SQLite do testów lokalnych
+db.sqlite3
+db.sqlite3-journal
+
+# Pliki generowane przez system operacyjny i edytory
 .DS_Store
-*.pem
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
 
-# debug
+# Pliki konfiguracyjne IDE
+.vscode/
+.idea/
+*.swp
+
+# Pliki logów i raportów
+/coverage
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Klucze i certyfikaty
+*.pem
+*.key
 
-# vercel
+# Vercel
 .vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts

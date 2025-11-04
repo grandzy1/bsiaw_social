@@ -43,3 +43,12 @@ def register_user(request):
     # Tutaj docelowo będzie logika tworzenia użytkownika
     # np. serializer.is_valid(), serializer.save()
     return Response({"message": "User registration endpoint works!"}, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_user(request):
+    """
+    POST /api/users/login/ - loguje użytkownika (placeholder)
+    """
+    return Response({"message": "User login endpoint works!"}, status=status.HTTP_200_OK)
+    

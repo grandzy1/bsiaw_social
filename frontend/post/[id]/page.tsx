@@ -4,7 +4,7 @@
 import React from 'react';
 import { useSearchParams } from 'next/navigation'
 import { useParams } from 'next/navigation'
-import Sidebar from '@/app/components/Sidebar';
+import Sidebar from '@/frontend/components/Sidebar';
 // Poprawiona ścieżka importu (3 poziomy w górę do roota projektu)
 
 

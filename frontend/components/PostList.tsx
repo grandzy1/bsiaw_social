@@ -1,4 +1,4 @@
-import { getPosts } from '@/app/lib/api';
+import { getPosts } from '@/frontend/lib/api';
 import PostItem from './PostItem';
 
 export default async function PostList() {

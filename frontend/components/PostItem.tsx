@@ -1,4 +1,4 @@
-import { Post } from '@/app/types/post';
+import { Post } from '@/frontend/types/post';
 
 interface PostItemProps {
   post: Post;

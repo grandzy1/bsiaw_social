@@ -33,3 +33,13 @@ def post_list(request):
             serializer.save(author=author)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    """
+    POST /api/users/register/ - tworzy nowego użytkownika (placeholder)
+    """
+    # Tutaj docelowo będzie logika tworzenia użytkownika
+    # np. serializer.is_valid(), serializer.save()
+    return Response({"message": "User registration endpoint works!"}, status=status.HTTP_201_CREATED)

@@ -1,5 +1,3 @@
-'use client';
-
 import { Suspense } from 'react';
 import Sidebar from './components/Sidebar';
 import NewPostForm from './components/NewPostForm';

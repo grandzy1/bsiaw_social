@@ -1,0 +1,57 @@
+# Pliki środowiskowe - Nigdy nie commituj sekretów!
+# Zawsze twórz plik .env.example jako wzór.
+.env*
+!.env.example
+
+# Zależności
+/frontend/node_modules
+/backend/venv/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js / Frontend
+/.next/
+/out/
+/build
+*.tsbuildinfo
+# next-env.d.ts jest generowany automatycznie
+next-env.d.ts
+
+# Django / Python
+__pycache__/
+*.pyc
+*.log
+# Jeśli kiedykolwiek użyjesz SQLite do testów lokalnych
+db.sqlite3
+db.sqlite3-journal
+
+# Pliki generowane przez system operacyjny i edytory
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# Pliki konfiguracyjne IDE
+.vscode/
+.idea/
+*.swp
+
+# Pliki logów i raportów
+/coverage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Klucze i certyfikaty
+*.pem
+*.key
+
+# Vercel
+.vercel

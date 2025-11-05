@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 import os
 from dotenv import find_dotenv, load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,11 +30,25 @@ SECRET_KEY = os.environ['SECRET_KEY']
 DEBUG = True
 
 # Wczytaj string ze zmiennej środowiskowej, domyślnie 'localhost,127.0.0.1'
-allowed_hosts_string = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,backend')
+allowed_hosts_string = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
 # Podziel string na listę
 ALLOWED_HOSTS = allowed_hosts_string.split(',')
 
+#Ustawienie uwierzytelnienia i autoryzacji z tokenami
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
 
 # Application definition
 
@@ -147,8 +162,9 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
-    ],
-}
+# Na gorze ustawione razem z tokenami, aby default był IsAuthenticated
+#REST_FRAMEWORK = {
+#    'DEFAULT_PERMISSION_CLASSES': [
+#        'rest_framework.permissions.AllowAny',
+#    ],
+#}

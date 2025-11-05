@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from base_app.models import Post, Comment
+from django.contrib.auth.models import User
 
 class PostSerializer(serializers.ModelSerializer):
     author_id = serializers.IntegerField(source='author.id', read_only=True)
@@ -36,3 +37,17 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return Comment.objects.create(**validated_data)
+
+class UserSerializer(serializers.ModelSerializer):
+    #Deklaracja jakiego modelu używamy oraz jakich informacji (fields) chcemy z tego modelu. Tutaj w fields jeszcze można dodać email - do pomyślenia co chcemy w bazie
+    class Meta:
+        model = User
+        fields = ["id", "username", "password"]
+        #Nie wysyłanie hasła z backendu do frontendu 
+        extra_kwargs = {"password": {"write_only": True}}
+
+    def create(self, validated_data):
+        #Uzycie metody Django "create_user" zamiast normalego "create" aby automatycznie hashował hasła przy zapisie do bazy
+        user = User.objects.create_user(**validated_data)
+        return user
+    

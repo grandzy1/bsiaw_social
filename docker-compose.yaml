@@ -46,7 +46,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: Dockerfile
     command: npm run dev
     volumes:
       - ./app:/app/app

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from base_app.models import Post
+from base_app.models import Post, Comment
 
 class PostSerializer(serializers.ModelSerializer):
     author_id = serializers.IntegerField(source='author.id', read_only=True)
@@ -16,3 +16,23 @@ class PostSerializer(serializers.ModelSerializer):
         if len(value) > 280:
             raise serializers.ValidationError("Content too long (max 280 characters)")
         return value
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    post = serializers.PrimaryKeyRelatedField(
+        queryset=Post.objects.all(), 
+        required=False  
+    )
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=Comment.objects.all(), 
+        required=False, 
+        allow_null=True 
+    )
+
+    class Meta:
+        model = Comment
+        fields = ["id", "author", "content", "post", "parent", "created_at"]
+        read_only_fields = ['id', 'author', 'created_at']
+
+    def create(self, validated_data):
+        return Comment.objects.create(**validated_data)

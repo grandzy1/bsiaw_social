@@ -6,6 +6,5 @@ urlpatterns = [
         path("users/register/", views.register_user, name="register_user"),
         path("users/login/", views.login_user, name="login_user"),
         path('posts/', views.post_list, name='post-list'),
-        # path("/posts/create/<int:id>",...,...),
-        # path("/posts/edit/<int:id>",...,...),
+        path('posts/<int:id>/comments/', views.comment_list, name='comment-list'),
         ]

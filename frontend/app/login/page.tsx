@@ -3,39 +3,29 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Logo from '../components/Logo';
-import { login } from '@/lib/auth';
+import { api } from '../lib/api';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Walidacja
-    if (!username.trim() || !password) {
-      setError('Wypełnij wszystkie pola');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const result = await login({ username, password });
-      
-      if (result.success) {
-        // Przekieruj do strony głównej
-        router.push('/');
-        router.refresh();
+      await api.auth.login(username, password);
+      router.push('/');
+    } catch (err: any) {
+      if (err.status === 400) {
+        setError('Nieprawidłowa nazwa użytkownika lub hasło');
       } else {
-        setError(result.error || 'Błąd logowania');
+        setError('Wystąpił błąd podczas logowania. Spróbuj ponownie.');
       }
-    } catch (err) {
-      setError('Wystąpił błąd. Spróbuj ponownie.');
     } finally {
       setIsLoading(false);
     }
@@ -54,14 +44,17 @@ export default function LoginPage() {
         </h1>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
           </div>
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+            <label 
+              htmlFor="username" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Nazwa użytkownika
             </label>
             <input 
@@ -72,13 +65,16 @@ export default function LoginPage() {
               placeholder="np. @anna_dev"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
               required
+              disabled={isLoading}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label 
+              htmlFor="password" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Hasło
             </label>
             <input 
@@ -89,15 +85,15 @@ export default function LoginPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
               required
+              disabled={isLoading}
             />
           </div>
 
           <button 
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-200 text-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Logowanie...' : 'Zaloguj się'}
           </button>

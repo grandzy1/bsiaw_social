@@ -1,21 +1,35 @@
-# backend/api/urls.py
-from django.urls import path
-from . import views
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from rest_framework.routers import DefaultRouter
 
-app_name = "api"
+from api.views import (
+    PostViewSet, ProfileViewSet, CommentViewSet,
+    CustomAuthToken, register, logout, current_user
+)
+
+# Router dla ViewSetów
+router = DefaultRouter()
+router.register(r'posts', PostViewSet, basename='post')
+router.register(r'profiles', ProfileViewSet, basename='profile')
+router.register(r'comments', CommentViewSet, basename='comment')
+
 urlpatterns = [
-    # Autentykacja JWT
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # Panel admina
+    path('admin/', admin.site.urls),
     
-    # Użytkownicy
-    path('users/register/', views.CreateUserView.as_view(), name='register_user'),
-    path('users/me/', views.current_user, name='current_user'),
+    # API endpoints
+    path('api/', include(router.urls)),
     
-    # Posty
-    path('posts/', views.post_list, name='post-list'),
-    
-    # Komentarze
-    path('posts/<int:id>/comments/', views.comment_list, name='comment-list'),
+    # Autentykacja
+    path('api/auth/login/', CustomAuthToken.as_view(), name='login'),
+    path('api/auth/register/', register, name='register'),
+    path('api/auth/logout/', logout, name='logout'),
+    path('api/auth/user/', current_user, name='current-user'),
 ]
+
+# Serwowanie plików media w trybie deweloperskim
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

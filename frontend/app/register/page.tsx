@@ -3,52 +3,53 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Logo from '../components/Logo';
-import { register } from '@/lib/auth';
+import { api } from '../lib/api';
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
-    setIsLoading(true);
 
-    // Walidacja
-    if (!username.trim() || !password || !confirmPassword) {
-      setError('Wypełnij wszystkie pola');
-      setIsLoading(false);
-      return;
-    }
-
+    // Walidacja po stronie klienta
     if (password !== confirmPassword) {
       setError('Hasła nie są zgodne');
-      setIsLoading(false);
       return;
     }
 
     if (password.length < 8) {
-      setError('Hasło musi mieć minimum 8 znaków');
-      setIsLoading(false);
+      setError('Hasło musi mieć co najmniej 8 znaków');
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      const result = await register({ username, password });
-      
-      if (result.success) {
-        // Przekieruj do strony głównej (automatycznie zalogowano)
-        router.push('/');
-        router.refresh();
+      await api.auth.register(username, email, password);
+      router.push('/');
+    } catch (err: any) {
+      if (err.data) {
+        // Obsługa błędów z backendu
+        const errors = err.data;
+        if (errors.username) {
+          setError(`Nazwa użytkownika: ${errors.username[0]}`);
+        } else if (errors.email) {
+          setError(`Email: ${errors.email[0]}`);
+        } else if (errors.password) {
+          setError(`Hasło: ${errors.password[0]}`);
+        } else {
+          setError('Wystąpił błąd podczas rejestracji');
+        }
       } else {
-        setError(result.error || 'Błąd rejestracji');
+        setError('Wystąpił błąd podczas rejestracji. Spróbuj ponownie.');
       }
-    } catch (err) {
-      setError('Wystąpił błąd. Spróbuj ponownie.');
     } finally {
       setIsLoading(false);
     }
@@ -67,31 +68,56 @@ export default function RegisterPage() {
         </h1>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
           </div>
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+            <label 
+              htmlFor="username" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Nazwa użytkownika
             </label>
             <input 
               type="text" 
               id="username"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Wybierz swoją nazwę (np. @anna_dev)"
+              placeholder="Wybierz swoją nazwę (np. anna_dev)"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
               required
+              disabled={isLoading}
               minLength={3}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label 
+              htmlFor="email" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Adres email
+            </label>
+            <input 
+              type="email" 
+              id="email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="twoj@email.pl"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+
+          <div>
+            <label 
+              htmlFor="password" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Hasło
             </label>
             <input 
@@ -101,15 +127,18 @@ export default function RegisterPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
               required
+              disabled={isLoading}
               minLength={8}
             />
             <p className="text-xs text-gray-500 mt-1">Minimum 8 znaków</p>
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+            <label 
+              htmlFor="confirmPassword" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Potwierdź hasło
             </label>
             <input 
@@ -119,17 +148,17 @@ export default function RegisterPage() {
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
               required
+              disabled={isLoading}
             />
           </div>
 
           <button 
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-200 text-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Rejestracja...' : 'Zarejestruj się'}
+            {isLoading ? 'Tworzenie konta...' : 'Zarejestruj się'}
           </button>
         </form>
 

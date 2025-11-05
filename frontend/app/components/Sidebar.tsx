@@ -1,10 +1,10 @@
 'use client'
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Logo from './Logo';
 import Link from 'next/link';
-import { isAuthenticated, logout } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
+import { api, User } from '../lib/api';
 
-// Ikony
 const HomeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -24,33 +24,55 @@ const LogoutIcon = () => (
 );
 
 export default function Sidebar() {
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    setLoggedIn(isAuthenticated());
+    const loadUser = async () => {
+      if (api.auth.isAuthenticated()) {
+        try {
+          const user = await api.auth.getCurrentUser();
+          setCurrentUser(user);
+        } catch (err) {
+          setCurrentUser(null);
+        }
+      }
+    };
+    loadUser();
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      await api.auth.logout();
+      setCurrentUser(null);
+      router.push('/');
+      window.location.reload(); // Odśwież stronę
+    } catch (err) {
+      console.error('Błąd podczas wylogowania', err);
+    }
   };
 
   return (
     <aside className="w-72 flex-shrink-0 p-4 h-screen sticky top-0">
       <nav className="flex flex-col space-y-2">
+        {/* Logo */}
         <div className="p-3 w-min">
           <Logo />
         </div>
         
+        {/* Link do strony głównej */}
         <Link 
           href="/"
           className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
         >
           <HomeIcon />
-          <span className="text-xl font-bold">Posty</span>
+          <span className="text-xl font-bold">Strona główna</span>
         </Link>
         
-        {loggedIn ? (
+        {/* Sekcja użytkownika */}
+        {currentUser ? (
           <>
+            {/* Profil */}
             <Link 
               href="/profile"
               className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
@@ -59,6 +81,7 @@ export default function Sidebar() {
               <span className="text-xl font-bold">Profil</span>
             </Link>
 
+            {/* Wyloguj */}
             <button
               onClick={handleLogout}
               className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full text-left"
@@ -67,21 +90,46 @@ export default function Sidebar() {
               <span className="text-xl font-bold">Wyloguj</span>
             </button>
 
-            <Link 
-              href="/create" 
+            {/* Przycisk publikowania */}
+            <button 
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4"
             >
               Opublikuj
-            </Link>
+            </button>
+
+            {/* Info o użytkowniku */}
+            <div className="mt-auto pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 cursor-pointer">
+                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                  {currentUser.username[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm truncate">{currentUser.username}</p>
+                  <p className="text-gray-500 text-sm truncate">{currentUser.email}</p>
+                </div>
+              </div>
+            </div>
           </>
         ) : (
-          <Link 
-            href="/login"
-            className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
-          >
-            <ProfileIcon />
-            <span className="text-xl font-bold">Zaloguj się</span>
-          </Link>
+          <>
+            {/* Login dla niezalogowanych */}
+            <Link 
+              href="/login"
+              className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
+            >
+              <ProfileIcon />
+              <span className="text-xl font-bold">Zaloguj się</span>
+            </Link>
+
+            {/* Przycisk rejestracji */}
+            <Link 
+              href="/register"
+              className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4"
+            >
+              Zarejestruj się
+            </Link>
+          </>
         )}
       </nav>
     </aside>

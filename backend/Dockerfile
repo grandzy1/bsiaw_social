@@ -1,29 +1,33 @@
 FROM python:3.11-slim
 
-# Ustaw zmienne środowiskowe
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Ustaw katalog roboczy
 WORKDIR /app
 
-# Zainstaluj zależności systemowe dla PostgreSQL
+# Zmienne środowiskowe
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Instalacja zależności systemowych
 RUN apt-get update && apt-get install -y \
     postgresql-client \
+    build-essential \
     libpq-dev \
-    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Skopiuj requirements i zainstaluj zależności Python
+# Kopiowanie requirements
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
 
-# Skopiuj całą aplikację
+# Instalacja zależności Pythona
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Kopiowanie aplikacji
 COPY . .
 
-# Expose port
+# Tworzenie katalogów dla static i media
+RUN mkdir -p /app/staticfiles /app/media
+
+# Ekspozycja portu
 EXPOSE 8000
 
-# Skrypt startowy (będzie w docker-compose)
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Komenda domyślna
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "backend.wsgi:application"]

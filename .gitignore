@@ -1,57 +1,41 @@
-# Pliki środowiskowe - Nigdy nie commituj sekretów!
-# Zawsze twórz plik .env.example jako wzór.
-.env*
-!.env.example
+# Backend
+backend/.env
+backend/staticfiles/
+backend/media/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+backend/.Python
+backend/venv/
+backend/db.sqlite3
 
-# Zależności
-/frontend/node_modules
-/backend/venv/
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Next.js
+.next/
+out/
+build/
+dist/
 
-# Next.js / Frontend
-/.next/
-/out/
-/build
-*.tsbuildinfo
-# next-env.d.ts jest generowany automatycznie
-next-env.d.ts
+# Dependencies
+node_modules/
 
-# Django / Python
-__pycache__/
-*.pyc
-*.log
-# Jeśli kiedykolwiek użyjesz SQLite do testów lokalnych
-db.sqlite3
-db.sqlite3-journal
-
-# Pliki generowane przez system operacyjny i edytory
-.DS_Store
-.AppleDouble
-.LSOverride
-Thumbs.db
-ehthumbs.db
-
-# Pliki konfiguracyjne IDE
+# IDE
 .vscode/
 .idea/
 *.swp
+*.swo
 
-# Pliki logów i raportów
-/coverage
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# Klucze i certyfikaty
-*.pem
-*.key
-
-# Vercel
-.vercel
+# Docker
+*.env.local
+```

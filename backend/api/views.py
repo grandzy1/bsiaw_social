@@ -32,13 +32,12 @@ def register(request):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
         
+        # POPRAWKA LOGIKI: Zwracamy pełny profil, a nie tylko dane usera
+        profile_data = ProfileSerializer(user.profile).data
+        
         # Przygotuj response
         response = Response({
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-            },
+            'user': profile_data,  # Zwracamy obiekt profilu
             'message': 'Użytkownik utworzony pomyślnie'
         }, status=status.HTTP_201_CREATED)
         
@@ -46,7 +45,7 @@ def register(request):
         response.set_cookie(
             key='access_token',
             value=access_token,
-            httponly=True,  # Nie dostępne z JavaScript (ochrona XSS)
+            httponly=True,
             secure=False,   # True w produkcji z HTTPS
             samesite='Lax',
             max_age=3600    # 1 godzina
@@ -95,13 +94,12 @@ def login(request):
     access_token = str(refresh.access_token)
     refresh_token = str(refresh)
     
+    # POPRAWKA LOGIKI: Zwracamy pełny profil
+    profile_data = ProfileSerializer(user.profile).data
+    
     # Przygotuj response
     response = Response({
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-        },
+        'user': profile_data, # Zwracamy obiekt profilu
         'message': 'Zalogowano pomyślnie'
     })
     
@@ -137,15 +135,14 @@ def logout(request):
         refresh_token = request.COOKIES.get('refresh_token')
         if refresh_token:
             token = RefreshToken(refresh_token)
-            token.blacklist()  # Dodaj token do blacklist
+            token.blacklist()
     except TokenError:
-        pass  # Token już nieważny
+        pass
     
     response = Response({
         'message': 'Wylogowano pomyślnie'
     }, status=status.HTTP_200_OK)
     
-    # Usuń cookies
     response.delete_cookie('access_token')
     response.delete_cookie('refresh_token')
     
@@ -174,7 +171,6 @@ def refresh_token(request):
             'message': 'Token odświeżony'
         })
         
-        # Ustaw nowy access token
         response.set_cookie(
             key='access_token',
             value=access_token,
@@ -196,39 +192,20 @@ def refresh_token(request):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def current_user(request):
-    """Pobierz dane aktualnie zalogowanego użytkownika"""
-    serializer = UserSerializer(request.user)
+    """Pobierz dane profilu aktualnie zalogowanego użytkownika"""
+    # POPRAWKA LOGIKI: Zwracamy Profil zamiast User
+    serializer = ProfileSerializer(request.user.profile)
     return Response(serializer.data)
 
 
 @api_view(['GET'])
-@ensure_csrf_cookie  # Ustaw CSRF cookie dla frontend
+@ensure_csrf_cookie
 @permission_classes([permissions.AllowAny])
 def get_csrf_token(request):
     """Endpoint do pobrania CSRF token"""
     return Response({'detail': 'CSRF cookie set'})
 
 
-# Middleware do automatycznego odświeżania tokenów
-class JWTAuthenticationFromCookie:
-    """
-    Custom authentication class która czyta JWT z cookies
-    """
-    def authenticate(self, request):
-        from rest_framework_simplejwt.authentication import JWTAuthentication
-        
-        access_token = request.COOKIES.get('access_token')
-        if not access_token:
-            return None
-        
-        # Ustaw token w headerze dla standardowego JWT auth
-        request.META['HTTP_AUTHORIZATION'] = f'Bearer {access_token}'
-        
-        jwt_auth = JWTAuthentication()
-        return jwt_auth.authenticate(request)
-
-
-# ViewSets pozostają takie same jak poprzednio
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.select_related('user').all()
     serializer_class = ProfileSerializer

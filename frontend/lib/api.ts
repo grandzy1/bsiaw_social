@@ -7,8 +7,18 @@ export interface User {
   email: string;
 }
 
+// POPRAWKA: Ten interfejs jest teraz głównym obiektem użytkownika po zalogowaniu
+export interface Profile {
+  id: number;
+  username: string;
+  email: string;
+  bio: string;
+  avatar: string | null;
+  created_at: string;
+}
+
 export interface AuthResponse {
-  user: User;
+  user: Profile; // ZMIANA: Oczekujemy pełnego profilu
   message: string;
 }
 
@@ -34,39 +44,32 @@ export interface Comment {
   created_at: string;
 }
 
-export interface Profile {
-  id: number;
-  username: string;
-  email: string;
-  bio: string;
-  avatar: string | null;
-  created_at: string;
-}
-
-// CSRF Token management
+// Zarządzanie tokenem CSRF
 let csrfToken: string | null = null;
 
 async function getCSRFToken(): Promise<string> {
   if (csrfToken) return csrfToken;
   
-  const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
-    credentials: 'include',
-  });
-  
-  // Pobierz token z cookie
-  const cookies = document.cookie.split(';');
-  for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split('=');
-    if (name === 'csrftoken') {
-      csrfToken = value;
-      return value;
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
+      credentials: 'include',
+    });
+    
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'csrftoken') {
+        csrfToken = value;
+        return value;
+      }
     }
+  } catch (error) {
+    console.error('Nie udało się pobrać tokenu CSRF', error);
   }
-  
   return '';
 }
 
-// Helper do tworzenia headerów
+// Helper do tworzenia nagłówków
 async function getHeaders(includeCSRF: boolean = true): Promise<HeadersInit> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -90,6 +93,10 @@ class APIError extends Error {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    // No Content
+    return {} as T;
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new APIError(response.status, errorData);
@@ -102,7 +109,7 @@ async function refreshAccessToken(): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh/`, {
       method: 'POST',
-      credentials: 'include', // Wyślij cookies
+      credentials: 'include',
       headers: await getHeaders(),
     });
     
@@ -117,22 +124,24 @@ async function authenticatedFetch(
   url: string, 
   options: RequestInit = {}
 ): Promise<Response> {
-  // Pierwszy request
   let response = await fetch(url, {
     ...options,
-    credentials: 'include', // WAŻNE: zawsze wysyłaj cookies
+    credentials: 'include',
   });
   
-  // Jeśli 401 (unauthorized), spróbuj odświeżyć token
   if (response.status === 401) {
     const refreshed = await refreshAccessToken();
     
     if (refreshed) {
-      // Ponów request z nowym tokenem
       response = await fetch(url, {
         ...options,
         credentials: 'include',
       });
+    } else {
+      // Jeśli odświeżenie się nie powiodło, wyloguj
+      api.auth.logout();
+      // Rzuć błąd, aby przerwać dalsze wykonywanie
+      throw new APIError(401, { detail: 'Sesja wygasła, zaloguj się ponownie.' });
     }
   }
   
@@ -141,13 +150,12 @@ async function authenticatedFetch(
 
 // API Client
 export const api = {
-  // Autentykacja
   auth: {
     async register(username: string, email: string, password: string): Promise<AuthResponse> {
       const response = await fetch(`${API_BASE_URL}/auth/register/`, {
         method: 'POST',
         headers: await getHeaders(),
-        credentials: 'include', // WAŻNE: odbierz cookies
+        credentials: 'include',
         body: JSON.stringify({ username, email, password, password2: password }),
       });
       return handleResponse<AuthResponse>(response);
@@ -157,43 +165,48 @@ export const api = {
       const response = await fetch(`${API_BASE_URL}/auth/login/`, {
         method: 'POST',
         headers: await getHeaders(),
-        credentials: 'include', // WAŻNE: odbierz cookies
+        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
       return handleResponse<AuthResponse>(response);
     },
 
     async logout(): Promise<void> {
-      await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
-        method: 'POST',
-        headers: await getHeaders(),
-      });
-      csrfToken = null; // Reset CSRF token
+      try {
+        await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
+          method: 'POST',
+          headers: await getHeaders(),
+        });
+      } catch (error) {
+        // Ignoruj błąd 401 przy wylogowywaniu
+        if (error instanceof APIError && error.status === 401) {
+           // Użytkownik i tak był już wylogowany
+        } else {
+          console.error('Błąd podczas wylogowania', error);
+        }
+      }
+      csrfToken = null;
     },
 
-    async getCurrentUser(): Promise<User> {
+    async getCurrentUser(): Promise<Profile> { // ZMIANA: Zwraca Profile
       const response = await authenticatedFetch(`${API_BASE_URL}/auth/user/`, {
         headers: await getHeaders(false),
       });
-      return handleResponse<User>(response);
+      return handleResponse<Profile>(response); // ZMIANA: Oczekuje Profile
     },
 
     async refreshToken(): Promise<boolean> {
       return refreshAccessToken();
     },
 
-    // Sprawdź czy użytkownik jest zalogowany (spróbuj pobrać dane)
-    async isAuthenticated(): Promise<boolean> {
-      try {
-        await this.getCurrentUser();
-        return true;
-      } catch {
-        return false;
-      }
+    isAuthenticated(): boolean {
+      // Szybsze sprawdzenie - zakładamy, że jeśli jest cookie, to jest zalogowany
+      // Pełna weryfikacja nastąpi przy pierwszym wywołaniu authenticatedFetch
+      if (typeof window === 'undefined') return false;
+      return document.cookie.includes('access_token');
     },
   },
 
-  // Posty
   posts: {
     async list(page: number = 1): Promise<{ results: Post[]; count: number; next: string | null; previous: string | null }> {
       const response = await authenticatedFetch(
@@ -251,7 +264,6 @@ export const api = {
     },
   },
 
-  // Komentarze
   comments: {
     async list(postId: number): Promise<Comment[]> {
       const response = await authenticatedFetch(
@@ -279,7 +291,6 @@ export const api = {
     },
   },
 
-  // Profile
   profiles: {
     async get(id: number): Promise<Profile> {
       const response = await authenticatedFetch(

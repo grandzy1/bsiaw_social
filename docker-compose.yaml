@@ -56,9 +56,11 @@ services:
     container_name: ycom_frontend
     command: npm run dev
     volumes:
-      - ./app:/app/app
-      - ./lib:/app/lib
-      - ./public:/app/public
+      # POPRAWKA: Brakowało ./frontend/ w ścieżkach hosta
+      - ./frontend/app:/app/app
+      - ./frontend/lib:/app/lib
+      - ./frontend/public:/app/public
+      # Te woluminy są poprawne - izolują node_modules i .next w kontenerze
       - /app/node_modules
       - /app/.next
     ports:

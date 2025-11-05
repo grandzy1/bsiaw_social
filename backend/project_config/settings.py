@@ -8,7 +8,8 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-p
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+# POPRAWKA BEZPIECZEŃSTWA: Wczytywanie z .env, usunięcie '*'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -18,8 +19,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'rest_framework_simplejwt',  # JWT zamiast Token auth
-    'rest_framework_simplejwt.token_blacklist',  # Dla wylogowania
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'api',
 ]
@@ -35,7 +36,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'backend.urls'
+# ZMIANA: 'backend.urls' -> 'project_config.urls'
+ROOT_URLCONF = 'project_config.urls'
 
 TEMPLATES = [
     {
@@ -53,7 +55,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+# ZMIANA: 'backend.wsgi.application' -> 'project_config.wsgi.application'
+WSGI_APPLICATION = 'project_config.wsgi.application'
 
 DATABASES = {
     'default': {
@@ -86,11 +89,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST Framework settings z JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT Authentication
-        'rest_framework.authentication.SessionAuthentication',  # Dla browsable API
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -100,12 +102,11 @@ REST_FRAMEWORK = {
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
 }
 
-# JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access token wygasa po 60 minutach
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Refresh token wygasa po 7 dniach
-    'ROTATE_REFRESH_TOKENS': True,                    # Nowy refresh token przy odświeżeniu
-    'BLACKLIST_AFTER_ROTATION': True,                 # Blacklist starych tokenów
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     
     'ALGORITHM': 'HS256',
@@ -125,25 +126,24 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 }
 
-# CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
-CORS_ALLOW_CREDENTIALS = True  # WAŻNE: Pozwala na cookies
+CORS_ALLOW_CREDENTIALS = True
 
-# Cookie settings dla JWT
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG  # True w produkcji (HTTPS)
+SESSION_COOKIE_SECURE = not DEBUG  # POPRAWKA: Zależne od DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-CSRF_COOKIE_HTTPONLY = False  # Frontend potrzebuje dostępu do CSRF token
-CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = not DEBUG  # POPRAWKA: Zależne od DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_TRUSTED_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000']
 
-# Security settings
+# POPRAWKA BEZPIECZEŃSTWA: Dodajemy hosty frontendu jako zaufane
+CSRF_TRUSTED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000

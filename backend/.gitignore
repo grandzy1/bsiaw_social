@@ -1,4 +1,0 @@
-.env
-base_app/__pycache__/*
-base_app/migrations/__pycache__/*
-project_config/__pycache__/*

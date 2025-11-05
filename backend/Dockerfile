@@ -30,4 +30,5 @@ RUN mkdir -p /app/staticfiles /app/media
 EXPOSE 8000
 
 # Komenda domyślna
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "backend.wsgi:application"]
+# ZMIANA: 'backend.wsgi:application' -> 'project_config.wsgi:application'
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "project_config.wsgi:application"]

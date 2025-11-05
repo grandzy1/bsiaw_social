@@ -1,12 +1,14 @@
 # Pliki środowiskowe - Nigdy nie commituj sekretów!
-# Zawsze twórz plik .env.example jako wzór.
+.env
 .env*
 !.env.example
+*.env.local
 
 # Zależności
 /frontend/node_modules
 /backend/venv/
-/.pnp
+/node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -18,82 +20,44 @@
 /.next/
 /out/
 /build
+/dist/
 *.tsbuildinfo
-# next-env.d.ts jest generowany automatycznie
 next-env.d.ts
 
 # Django / Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 *.log
-# Jeśli kiedykolwiek użyjesz SQLite do testów lokalnych
 db.sqlite3
 db.sqlite3-journal
+.Python
+/backend/staticfiles/
+/backend/media/
 
-# Pliki generowane przez system operacyjny i edytory
+# Pliki systemowe i IDE
 .DS_Store
 .AppleDouble
 .LSOverride
 Thumbs.db
 ehthumbs.db
-
-# Pliki konfiguracyjne IDE
-.vscode/
-.idea/
-*.swp
-
-# Pliki logów i raportów
-/coverage
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Klucze i certyfikaty
-*.pem
-*.key
-
-# Vercel
-.vercel
-
-# Backend
-backend/.env
-backend/staticfiles/
-backend/media/
-backend/__pycache__/
-backend/**/__pycache__/
-backend/**/*.pyc
-backend/**/*.pyo
-backend/**/*.pyd
-backend/.Python
-backend/venv/
-backend/db.sqlite3
-
-# Next.js
-.next/
-out/
-build/
-dist/
-
-# Dependencies
-node_modules/
-
-# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
+# Logi i raporty
+/coverage
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
+*.log
 
 # Docker
 *.env.local
-```
+
+# Vercel
+.vercel
+.turbo

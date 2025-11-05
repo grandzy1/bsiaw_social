@@ -22,5 +22,4 @@ app_name = 'api'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
-    path('', include("base_app.urls")),
 ]

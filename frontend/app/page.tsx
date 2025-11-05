@@ -1,41 +1,55 @@
-import { Suspense } from 'react';
+'use client'
+import { Suspense, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import NewPostForm from './components/NewPostForm';
 import PostList from './components/PostList';
 import Link from 'next/link';
+import { isAuthenticated } from '@/lib/auth';
 
-/**
- * Główna strona aplikacji z postami (OSOBA 2)
- * Integracja z istniejącym layoutem (Sidebar)
- */
 export default function HomePage() {
-  // TODO: Sprawdź czy użytkownik jest zalogowany
-  // const isLoggedIn = false; // Zmień gdy kolega zrobi auth
-  const isLoggedIn = true; // Tymczasowo true dla testów
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setLoggedIn(isAuthenticated());
+  }, []);
+
+  // Zapobiegaj problemom z hydratacją
+  if (!mounted) {
+    return (
+      <main className="bg-white min-h-screen text-gray-900">
+        <div className="flex max-w-7xl mx-auto">
+          <Sidebar />
+          <div className="w-full max-w-2xl border-x border-gray-200 min-h-screen">
+            <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
+              <h1 className="text-xl font-bold p-4">Strona główna</h1>
+            </header>
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-500"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-white min-h-screen text-gray-900">
-      {/* Główny kontener layoutu */}
       <div className="flex max-w-7xl mx-auto">
-        {/* Kolumna 1: Boczny panel nawigacyjny */}
         <Sidebar />
 
-        {/* Kolumna 2: Główna oś czasu (Feed) */}
         <div className="w-full max-w-2xl border-x border-gray-200 min-h-screen">
-          {/* Nagłówek */}
           <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
             <h1 className="text-xl font-bold p-4">Strona główna</h1>
           </header>
 
-          {/* Warunkowe wyświetlanie: posty lub info o logowaniu */}
-          {isLoggedIn ? (
+          {loggedIn ? (
             <>
-              {/* Formularz tworzenia nowego posta */}
               <div className="border-b border-gray-200">
                 <NewPostForm />
               </div>
 
-              {/* Lista postów */}
               <Suspense
                 fallback={
                   <div className="text-center py-8">
@@ -48,13 +62,12 @@ export default function HomePage() {
               </Suspense>
             </>
           ) : (
-            /* Komunikat dla niezalogowanych użytkowników */
             <section className="p-8 pt-16 text-center">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                Witaj na platformie!
+                Witaj na platformie Y!
               </h2>
-              <p className="text-gray-600 text-lg">
-                You need to login to see posts.
+              <p className="text-gray-600 text-lg mb-4">
+                Musisz się zalogować, aby przeglądać i dodawać posty.
               </p>
               <Link
                 href="/login"
@@ -71,9 +84,6 @@ export default function HomePage() {
             </section>
           )}
         </div>
-
-        {/* Kolumna 3: Widgety (opcjonalnie) */}
-        {/* <Widgets /> */}
       </div>
     </main>
   );

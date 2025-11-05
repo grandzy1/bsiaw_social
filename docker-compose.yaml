@@ -45,7 +45,7 @@ services:
   # Frontend Next.js
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     command: npm run dev
     volumes:

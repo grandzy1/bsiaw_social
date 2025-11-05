@@ -2,8 +2,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Logo from '../components/Logo';
-import { api } from '../lib/api';
+// ZMIANA: Poprawiona ścieżka importu
+import Logo from '@/app/components/Logo';
+// ZMIANA: Poprawiona ścieżka importu
+import { api } from '@/lib/api';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -20,8 +22,9 @@ export default function LoginPage() {
     try {
       await api.auth.login(username, password);
       router.push('/');
+      router.refresh(); // Wymuś odświeżenie Sidebar
     } catch (err: any) {
-      if (err.status === 400) {
+      if (err.status === 401) { // Poprawka na status 401 (zamiast 400)
         setError('Nieprawidłowa nazwa użytkownika lub hasło');
       } else {
         setError('Wystąpił błąd podczas logowania. Spróbuj ponownie.');

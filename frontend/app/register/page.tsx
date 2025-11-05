@@ -2,8 +2,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Logo from '../components/Logo';
-import { api } from '../lib/api';
+// ZMIANA: Poprawiona ścieżka importu
+import Logo from '@/app/components/Logo';
+// ZMIANA: Poprawiona ścieżka importu
+import { api } from '@/lib/api';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -34,6 +36,7 @@ export default function RegisterPage() {
     try {
       await api.auth.register(username, email, password);
       router.push('/');
+      router.refresh(); // Wymuś odświeżenie Sidebar
     } catch (err: any) {
       if (err.data) {
         // Obsługa błędów z backendu

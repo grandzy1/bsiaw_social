@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Logo from './Logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// ZMIANA: Poprawiona ścieżka importu i typ z User na Profile
+// ZMIANA: Poprawiona ścieżka importu z '../lib/api' na '@/lib/api'
+// ZMIANA: Poprawiony typ User na Profile (zgodnie z logiką logowania)
 import { api, Profile } from '@/lib/api';
 
 const HomeIcon = () => (
@@ -31,7 +32,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     const loadUser = async () => {
-      // Sprawdzamy token w cookie - szybsze niż zapytanie
+      // Używamy isAuthenticated do szybkiego sprawdzenia (czy jest cookie)
       if (api.auth.isAuthenticated()) { 
         try {
           const user = await api.auth.getCurrentUser();
@@ -50,9 +51,8 @@ export default function Sidebar() {
     try {
       await api.auth.logout();
       setCurrentUser(null);
-      // Przekierowanie zamiast przeładowania, aby zachować stan Next.js
       router.push('/');
-      router.refresh(); 
+      router.refresh(); // Wymuś odświeżenie stanu aplikacji
     } catch (err) {
       console.error('Błąd podczas wylogowania', err);
     }

@@ -1,8 +1,10 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
+// ZMIANA: Poprawiona ścieżka importu
+import Sidebar from '@/app/components/Sidebar';
 import Link from 'next/link';
-import { api, Post, User } from '../lib/api';
+// ZMIANA: Poprawiona ścieżka importu i typ User na Profile
+import { api, Post, Profile } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 // Komponent pojedynczego posta
@@ -10,7 +12,8 @@ function PostCard({ post, onLike, onDelete, currentUser }: {
   post: Post; 
   onLike: (id: number) => void;
   onDelete: (id: number) => void;
-  currentUser: User | null;
+  // ZMIANA: Typ z User na Profile
+  currentUser: Profile | null; 
 }) {
   const router = useRouter();
   const formatDate = (dateString: string) => {
@@ -98,7 +101,7 @@ function PostCard({ post, onLike, onDelete, currentUser }: {
 }
 
 // Komponent formularza do tworzenia posta
-function CreatePost({ onPostCreated }: { onPostCreated: () => void }) {
+function CreatePost({ onPostCreated, currentUser }: { onPostCreated: () => void, currentUser: Profile }) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -113,7 +116,7 @@ function CreatePost({ onPostCreated }: { onPostCreated: () => void }) {
     try {
       await api.posts.create(content);
       setContent('');
-      onPostCreated();
+      onPostCreated(); // Odśwież posty
     } catch (err: any) {
       setError(err.data?.content?.[0] || 'Nie udało się utworzyć posta');
     } finally {
@@ -127,7 +130,7 @@ function CreatePost({ onPostCreated }: { onPostCreated: () => void }) {
         <div className="flex gap-3">
           <div className="flex-shrink-0">
             <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-              U
+              {currentUser.username[0].toUpperCase()}
             </div>
           </div>
           <div className="flex-1">
@@ -165,17 +168,20 @@ function CreatePost({ onPostCreated }: { onPostCreated: () => void }) {
 // Główna strona
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // ZMIANA: Typ z User na Profile
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
 
   const loadPosts = async () => {
     try {
+      setIsLoading(true);
       const response = await api.posts.list();
       setPosts(response.results);
       setError('');
     } catch (err) {
+      console.error(err); // Dodajemy log błędu do konsoli
       setError('Nie udało się załadować postów');
     } finally {
       setIsLoading(false);
@@ -188,10 +194,11 @@ export default function HomePage() {
         const user = await api.auth.getCurrentUser();
         setCurrentUser(user);
       } catch (err) {
-        // Token nieważny, wyloguj
         api.auth.logout();
         setCurrentUser(null);
       }
+    } else {
+      setCurrentUser(null);
     }
   };
 
@@ -209,15 +216,24 @@ export default function HomePage() {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
+    // Optymistyczne UI
+    const originalPosts = [...posts];
+    const updatedPosts = posts.map(p => 
+      p.id === postId 
+        ? { ...p, is_liked: !p.is_liked, likes_count: p.is_liked ? p.likes_count - 1 : p.likes_count + 1 }
+        : p
+    );
+    setPosts(updatedPosts);
+
     try {
       if (post.is_liked) {
         await api.posts.unlike(postId);
       } else {
         await api.posts.like(postId);
       }
-      await loadPosts(); // Odśwież listę
     } catch (err) {
       console.error('Błąd podczas polubienia posta', err);
+      setPosts(originalPosts); // Wycofaj zmiany w razie błędu
     }
   };
 
@@ -245,7 +261,7 @@ export default function HomePage() {
 
           {/* Formularz tworzenia posta - tylko dla zalogowanych */}
           {currentUser ? (
-            <CreatePost onPostCreated={loadPosts} />
+            <CreatePost onPostCreated={loadPosts} currentUser={currentUser} />
           ) : (
             <div className="border-b border-gray-200 p-8 text-center bg-gray-50">
               <h2 className="text-xl font-bold text-gray-800 mb-2">

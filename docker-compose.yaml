@@ -4,6 +4,7 @@ services:
   # Baza danych PostgreSQL
   db:
     image: postgres:16-alpine
+    container_name: ycom_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -12,6 +13,8 @@ services:
       - POSTGRES_PASSWORD=postgres
     ports:
       - "5432:5432"
+    networks:
+      - ycom_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -23,6 +26,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: ycom_backend
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -41,12 +45,15 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
+    networks:
+      - ycom_network
 
   # Frontend Next.js
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: ycom_frontend
     command: npm run dev
     volumes:
       - ./app:/app/app
@@ -60,8 +67,14 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api
     depends_on:
       - backend
+    networks:
+      - ycom_network
 
 volumes:
   postgres_data:
   static_volume:
   media_volume:
+
+  networks:
+  ycom_network:
+    driver: bridge

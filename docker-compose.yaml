@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Baza danych PostgreSQL
   db:
@@ -16,7 +14,8 @@ services:
     networks:
       - ycom_network
     healthcheck:
-      test: ["CMD-SHELL", "pg-isready -U postgres"]
+      # ZMIANA: Dodaliśmy "-d ycom_db", aby sprawdzać właściwą bazę danych.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ycom_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,12 +26,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ycom_backend
-    # ZMIANA: Poprawiona komenda startowa, aby używać `project_config.settings`
-    # (Zakładając, że manage.py też jest poprawiony)
+    # ZMIANA: Uproszczona komenda. 
+    # Polegamy na manage.py (który poprawiliśmy) i zmiennej DJANGO_SETTINGS_MODULE.
     command: >
-      sh -c "python manage.py migrate --settings=project_config.settings &&
-             python manage.py collectstatic --noinput --settings=project_config.settings &&
-             python manage.py runserver 0.0.0.0:8000 --settings=project_config.settings"
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
       - static_volume:/app/staticfiles
@@ -47,7 +46,7 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
-      # ZMIANA: Dodajemy zmienną środowiskową na wszelki wypadek
+      # Ta zmienna zapewnia, że Django użyje właściwych ustawień
       - DJANGO_SETTINGS_MODULE=project_config.settings
     networks:
       - ycom_network
@@ -60,7 +59,6 @@ services:
     container_name: ycom_frontend
     command: npm run dev
     volumes:
-      # POPRAWKA: Upewnienie się, że ścieżki są poprawne
       - ./frontend/app:/app/app
       - ./frontend/lib:/app/lib
       - ./frontend/public:/app/public
@@ -69,6 +67,7 @@ services:
       - ./frontend/next.config.ts:/app/next.config.ts
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/postcss.config.mjs:/app/postcss.config.mjs
+      # Izolujemy node_modules i .next wewnątrz kontenera
       - /app/node_modules
       - /app/.next
     ports:

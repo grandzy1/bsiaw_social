@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Logo from './Logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, User } from '../lib/api';
+// ZMIANA: Poprawiona ścieżka importu i typ z User na Profile
+import { api, Profile } from '@/lib/api';
 
 const HomeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
@@ -24,17 +25,21 @@ const LogoutIcon = () => (
 );
 
 export default function Sidebar() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // ZMIANA: Typ z User na Profile
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const loadUser = async () => {
-      if (api.auth.isAuthenticated()) {
+      // Sprawdzamy token w cookie - szybsze niż zapytanie
+      if (api.auth.isAuthenticated()) { 
         try {
           const user = await api.auth.getCurrentUser();
           setCurrentUser(user);
         } catch (err) {
+          // Token nieważny, czyścimy
           setCurrentUser(null);
+          api.auth.logout(); // Wyczyść stare tokeny
         }
       }
     };
@@ -45,8 +50,9 @@ export default function Sidebar() {
     try {
       await api.auth.logout();
       setCurrentUser(null);
+      // Przekierowanie zamiast przeładowania, aby zachować stan Next.js
       router.push('/');
-      window.location.reload(); // Odśwież stronę
+      router.refresh(); 
     } catch (err) {
       console.error('Błąd podczas wylogowania', err);
     }

@@ -3,10 +3,12 @@ services:
   db:
     image: postgres:16-alpine
     container_name: ycom_db
+    env_file:
+      - ./.env
     environment:
-      POSTGRES_DB: ${DB_NAME:-ycom_db}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -25,6 +27,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ycom_backend
+    env_file:
+      - ./.env
     command: >
       sh -c "
         echo 'Waiting for database...' &&
@@ -36,14 +40,14 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DB_NAME=${DB_NAME:-ycom_db}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DEBUG=True
-      - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key-change-in-production}
-      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
     depends_on:
       db:
         condition: service_healthy
@@ -56,6 +60,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ycom_frontend
+    env_file:
+      - ./.env
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -63,8 +69,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000/api
-      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NODE_ENV=${NODE_ENV}
     depends_on:
       - backend
     networks:

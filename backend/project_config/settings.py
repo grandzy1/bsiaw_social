@@ -29,7 +29,7 @@ SECRET_KEY = os.environ['SECRET_KEY']
 DEBUG = True
 
 # Wczytaj string ze zmiennej środowiskowej, domyślnie 'localhost,127.0.0.1'
-allowed_hosts_string = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+allowed_hosts_string = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,backend')
 
 # Podziel string na listę
 ALLOWED_HOSTS = allowed_hosts_string.split(',')

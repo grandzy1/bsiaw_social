@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Logo from './Logo';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-// ZMIANA: Poprawiona ścieżka importu z '../lib/api' na '@/lib/api'
-// ZMIANA: Poprawiony typ User na Profile (zgodnie z logiką logowania)
+import { useRouter, usePathname } from 'next/navigation';
 import { api, Profile } from '@/lib/api';
 
 const HomeIcon = () => (
@@ -26,33 +24,28 @@ const LogoutIcon = () => (
 );
 
 export default function Sidebar() {
-  // ZMIANA: Typ z User na Profile
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const loadUser = async () => {
-      // Używamy isAuthenticated do szybkiego sprawdzenia (czy jest cookie)
-      if (api.auth.isAuthenticated()) { 
-        try {
-          const user = await api.auth.getCurrentUser();
-          setCurrentUser(user);
-        } catch (err) {
-          // Token nieważny, czyścimy
-          setCurrentUser(null);
-          api.auth.logout(); // Wyczyść stare tokeny
-        }
+      try {
+        const user = await api.auth.getCurrentUser();
+        setCurrentUser(user);
+      } catch (err) {
+        setCurrentUser(null);
       }
     };
     loadUser();
-  }, []);
+  }, [pathname]); // Odświeżaj stan użytkownika przy każdej zmianie strony
 
   const handleLogout = async () => {
     try {
       await api.auth.logout();
       setCurrentUser(null);
-      router.push('/');
-      router.refresh(); // Wymuś odświeżenie stanu aplikacji
+      // Używamy twardego przeładowania, aby wyczyścić stan
+      window.location.href = '/'; 
     } catch (err) {
       console.error('Błąd podczas wylogowania', err);
     }

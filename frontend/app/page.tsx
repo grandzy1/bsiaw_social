@@ -1,21 +1,19 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-// ZMIANA: Poprawiona ścieżka importu
 import Sidebar from '@/app/components/Sidebar';
 import Link from 'next/link';
-// ZMIANA: Poprawiona ścieżka importu i typ User na Profile
 import { api, Post, Profile } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 // Komponent pojedynczego posta
 function PostCard({ post, onLike, onDelete, currentUser }: { 
   post: Post; 
   onLike: (id: number) => void;
   onDelete: (id: number) => void;
-  // ZMIANA: Typ z User na Profile
-  currentUser: Profile | null; 
+  currentUser: Profile | null;
 }) {
   const router = useRouter();
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pl-PL', { 
@@ -26,8 +24,23 @@ function PostCard({ post, onLike, onDelete, currentUser }: {
     });
   };
 
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    router.push(`/post/${post.id}`);
+  };
+
+  const handleCommentClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation(); 
+    router.push(`/post/${post.id}?comment=true`); 
+  };
+
   return (
-    <div className="border-b border-gray-200 p-4 hover:bg-gray-50 transition-colors">
+    <div 
+      onClick={handleCardClick}
+      className="border-b border-gray-200 p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+    >
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0">
@@ -54,8 +67,8 @@ function PostCard({ post, onLike, onDelete, currentUser }: {
           {/* Akcje */}
           <div className="flex gap-6 text-gray-500">
             <button 
-              onClick={() => router.push(`/post/${post.id}`)}
-              className="flex items-center gap-2 hover:text-blue-500 transition-colors"
+              onClick={handleCommentClick}
+              className="flex items-center gap-2 hover:text-blue-500 transition-colors z-10"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -65,9 +78,12 @@ function PostCard({ post, onLike, onDelete, currentUser }: {
             </button>
 
             <button 
-              onClick={() => onLike(post.id)}
+              onClick={(e) => {
+                e.stopPropagation(); 
+                onLike(post.id);
+              }}
               disabled={!currentUser}
-              className={`flex items-center gap-2 transition-colors ${
+              className={`flex items-center gap-2 transition-colors z-10 ${
                 post.is_liked 
                   ? 'text-red-500 hover:text-red-600' 
                   : 'hover:text-red-500'
@@ -84,8 +100,11 @@ function PostCard({ post, onLike, onDelete, currentUser }: {
 
             {post.can_delete && (
               <button 
-                onClick={() => onDelete(post.id)}
-                className="flex items-center gap-2 hover:text-red-500 transition-colors ml-auto"
+                onClick={(e) => {
+                  e.stopPropagation(); 
+                  onDelete(post.id);
+                }}
+                className="flex items-center gap-2 hover:text-red-500 transition-colors ml-auto z-10"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -116,7 +135,7 @@ function CreatePost({ onPostCreated, currentUser }: { onPostCreated: () => void,
     try {
       await api.posts.create(content);
       setContent('');
-      onPostCreated(); // Odśwież posty
+      onPostCreated();
     } catch (err: any) {
       setError(err.data?.content?.[0] || 'Nie udało się utworzyć posta');
     } finally {
@@ -168,11 +187,11 @@ function CreatePost({ onPostCreated, currentUser }: { onPostCreated: () => void,
 // Główna strona
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
-  // ZMIANA: Typ z User na Profile
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
+  const pathname = usePathname();
 
   const loadPosts = async () => {
     try {
@@ -181,7 +200,7 @@ export default function HomePage() {
       setPosts(response.results);
       setError('');
     } catch (err) {
-      console.error(err); // Dodajemy log błędu do konsoli
+      console.error(err);
       setError('Nie udało się załadować postów');
     } finally {
       setIsLoading(false);
@@ -189,15 +208,10 @@ export default function HomePage() {
   };
 
   const loadCurrentUser = async () => {
-    if (api.auth.isAuthenticated()) {
-      try {
-        const user = await api.auth.getCurrentUser();
-        setCurrentUser(user);
-      } catch (err) {
-        api.auth.logout();
-        setCurrentUser(null);
-      }
-    } else {
+    try {
+      const user = await api.auth.getCurrentUser();
+      setCurrentUser(user);
+    } catch (err) {
       setCurrentUser(null);
     }
   };
@@ -205,7 +219,7 @@ export default function HomePage() {
   useEffect(() => {
     loadPosts();
     loadCurrentUser();
-  }, []);
+  }, [pathname]);
 
   const handleLike = async (postId: number) => {
     if (!currentUser) {
@@ -216,24 +230,20 @@ export default function HomePage() {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    // Optymistyczne UI
-    const originalPosts = [...posts];
-    const updatedPosts = posts.map(p => 
-      p.id === postId 
-        ? { ...p, is_liked: !p.is_liked, likes_count: p.is_liked ? p.likes_count - 1 : p.likes_count + 1 }
-        : p
-    );
-    setPosts(updatedPosts);
-
+    // ZMIANA: Usunięto optymistyczne UI, aby naprawić błąd -1
+    // Zamiast tego, po prostu wywołujemy API i odświeżamy *wszystkie* posty.
     try {
       if (post.is_liked) {
         await api.posts.unlike(postId);
       } else {
         await api.posts.like(postId);
       }
+      // Po udanej operacji, odśwież listę postów z serwera
+      await loadPosts(); 
     } catch (err) {
       console.error('Błąd podczas polubienia posta', err);
-      setPosts(originalPosts); // Wycofaj zmiany w razie błędu
+      // Jeśli wystąpi błąd, i tak odświeżamy
+      await loadPosts();
     }
   };
 
@@ -254,12 +264,10 @@ export default function HomePage() {
         <Sidebar />
 
         <div className="w-full max-w-2xl border-x border-gray-200 min-h-screen">
-          {/* Nagłówek */}
           <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
             <h1 className="text-xl font-bold p-4">Strona główna</h1>
           </header>
 
-          {/* Formularz tworzenia posta - tylko dla zalogowanych */}
           {currentUser ? (
             <CreatePost onPostCreated={loadPosts} currentUser={currentUser} />
           ) : (
@@ -279,7 +287,6 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Lista postów */}
           {isLoading ? (
             <div className="p-8 text-center text-gray-500">
               Ładowanie postów...

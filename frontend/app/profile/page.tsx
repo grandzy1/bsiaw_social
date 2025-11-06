@@ -1,8 +1,10 @@
 // Plik: app/profile/page.tsx
 'use client'
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import { api, Profile } from '../lib/api'; // Importujemy Profile
+// ZMIANA: Poprawiona ścieżka importu
+import Sidebar from '@/app/components/Sidebar';
+// ZMIANA: Poprawiona ścieżka importu
+import { api, Profile } from '@/lib/api'; 
 import { useRouter } from 'next/navigation';
 
 /**
@@ -89,9 +91,7 @@ export default function ProfilePage() {
             </p>
             
           </section>
-
         </div>
-
       </div>
     </main>
   );

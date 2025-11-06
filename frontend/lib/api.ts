@@ -1,3 +1,5 @@
+'use client' // Dodajemy 'use client', ponieważ ten plik będzie używany w komponentach klienckich
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // Typy danych
@@ -7,7 +9,6 @@ export interface User {
   email: string;
 }
 
-// POPRAWKA: Ten interfejs jest teraz głównym obiektem użytkownika po zalogowaniu
 export interface Profile {
   id: number;
   username: string;
@@ -18,7 +19,7 @@ export interface Profile {
 }
 
 export interface AuthResponse {
-  user: Profile; // ZMIANA: Oczekujemy pełnego profilu
+  user: Profile;
   message: string;
 }
 
@@ -44,6 +45,13 @@ export interface Comment {
   created_at: string;
 }
 
+// Obsługa błędów API
+class APIError extends Error {
+  constructor(public status: number, public data: any) {
+    super(`API Error: ${status}`);
+  }
+}
+
 // Zarządzanie tokenem CSRF
 let csrfToken: string | null = null;
 
@@ -51,10 +59,12 @@ async function getCSRFToken(): Promise<string> {
   if (csrfToken) return csrfToken;
   
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
+    await fetch(`${API_BASE_URL}/auth/csrf/`, {
       credentials: 'include',
     });
     
+    // Sprawdzanie document.cookie jest jedynym sposobem na odczytanie
+    // tokenu CSRF, który celowo NIE jest HttpOnly.
     const cookies = document.cookie.split(';');
     for (let cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
@@ -85,16 +95,8 @@ async function getHeaders(includeCSRF: boolean = true): Promise<HeadersInit> {
   return headers;
 }
 
-// Obsługa błędów API
-class APIError extends Error {
-  constructor(public status: number, public data: any) {
-    super(`API Error: ${status}`);
-  }
-}
-
 async function handleResponse<T>(response: Response): Promise<T> {
-  if (response.status === 204) {
-    // No Content
+  if (response.status === 204) { // Dla zapytań DELETE
     return {} as T;
   }
   if (!response.ok) {
@@ -138,10 +140,8 @@ async function authenticatedFetch(
         credentials: 'include',
       });
     } else {
-      // Jeśli odświeżenie się nie powiodło, wyloguj
-      api.auth.logout();
-      // Rzuć błąd, aby przerwać dalsze wykonywanie
-      throw new APIError(401, { detail: 'Sesja wygasła, zaloguj się ponownie.' });
+      // Jeśli odświeżenie się nie powiodło, rzuć błąd
+      throw new APIError(401, { detail: 'Sesja wygasła.' });
     }
   }
   
@@ -178,9 +178,8 @@ export const api = {
           headers: await getHeaders(),
         });
       } catch (error) {
-        // Ignoruj błąd 401 przy wylogowywaniu
         if (error instanceof APIError && error.status === 401) {
-           // Użytkownik i tak był już wylogowany
+           // OK, użytkownik i tak był wylogowany
         } else {
           console.error('Błąd podczas wylogowania', error);
         }
@@ -188,30 +187,23 @@ export const api = {
       csrfToken = null;
     },
 
-    async getCurrentUser(): Promise<Profile> { // ZMIANA: Zwraca Profile
+    async getCurrentUser(): Promise<Profile> {
       const response = await authenticatedFetch(`${API_BASE_URL}/auth/user/`, {
         headers: await getHeaders(false),
       });
-      return handleResponse<Profile>(response); // ZMIANA: Oczekuje Profile
+      return handleResponse<Profile>(response);
     },
 
     async refreshToken(): Promise<boolean> {
       return refreshAccessToken();
     },
-
-    isAuthenticated(): boolean {
-      // Szybsze sprawdzenie - zakładamy, że jeśli jest cookie, to jest zalogowany
-      // Pełna weryfikacja nastąpi przy pierwszym wywołaniu authenticatedFetch
-      if (typeof window === 'undefined') return false;
-      return document.cookie.includes('access_token');
-    },
   },
 
   posts: {
     async list(page: number = 1): Promise<{ results: Post[]; count: number; next: string | null; previous: string | null }> {
-      const response = await authenticatedFetch(
+      const response = await fetch(
         `${API_BASE_URL}/posts/?page=${page}`,
-        { headers: await getHeaders(false) }
+        { headers: await getHeaders(false), credentials: 'include' }
       );
       return handleResponse(response);
     },
@@ -226,38 +218,41 @@ export const api = {
     },
 
     async get(id: number): Promise<Post> {
-      const response = await authenticatedFetch(
+      const response = await fetch(
         `${API_BASE_URL}/posts/${id}/`,
-        { headers: await getHeaders(false) }
+        { headers: await getHeaders(false), credentials: 'include' }
       );
       return handleResponse<Post>(response);
     },
 
     async delete(id: number): Promise<void> {
-      await authenticatedFetch(`${API_BASE_URL}/posts/${id}/`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/`, {
         method: 'DELETE',
         headers: await getHeaders(),
       });
+      await handleResponse(response); // Czekaj na odpowiedź 204
     },
 
     async like(id: number): Promise<void> {
-      await authenticatedFetch(`${API_BASE_URL}/posts/${id}/like/`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/like/`, {
         method: 'POST',
         headers: await getHeaders(),
       });
+      await handleResponse(response); // Czekaj na odpowiedź
     },
 
     async unlike(id: number): Promise<void> {
-      await authenticatedFetch(`${API_BASE_URL}/posts/${id}/unlike/`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/unlike/`, {
         method: 'POST',
         headers: await getHeaders(),
       });
+      await handleResponse(response); // Czekaj na odpowiedź
     },
 
     async getUserPosts(username: string): Promise<Post[]> {
-      const response = await authenticatedFetch(
+      const response = await fetch(
         `${API_BASE_URL}/posts/user_posts/?username=${username}`,
-        { headers: await getHeaders(false) }
+        { headers: await getHeaders(false), credentials: 'include' }
       );
       const data = await handleResponse<{ results: Post[] }>(response);
       return data.results;
@@ -266,9 +261,9 @@ export const api = {
 
   comments: {
     async list(postId: number): Promise<Comment[]> {
-      const response = await authenticatedFetch(
+      const response = await fetch(
         `${API_BASE_URL}/comments/?post_id=${postId}`,
-        { headers: await getHeaders(false) }
+        { headers: await getHeaders(false), credentials: 'include' }
       );
       const data = await handleResponse<{ results: Comment[] }>(response);
       return data.results;
@@ -284,18 +279,19 @@ export const api = {
     },
 
     async delete(id: number): Promise<void> {
-      await authenticatedFetch(`${API_BASE_URL}/comments/${id}/`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/comments/${id}/`, {
         method: 'DELETE',
         headers: await getHeaders(),
       });
+      await handleResponse(response); // Czekaj na odpowiedź
     },
   },
 
   profiles: {
     async get(id: number): Promise<Profile> {
-      const response = await authenticatedFetch(
+      const response = await fetch(
         `${API_BASE_URL}/profiles/${id}/`,
-        { headers: await getHeaders(false) }
+        { headers: await getHeaders(false), credentials: 'include' }
       );
       return handleResponse<Profile>(response);
     },

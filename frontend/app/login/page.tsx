@@ -1,10 +1,8 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// ZMIANA: Poprawiona ścieżka importu
 import Logo from '@/app/components/Logo';
-// ZMIANA: Poprawiona ścieżka importu
 import { api } from '@/lib/api';
 
 export default function LoginPage() {
@@ -14,6 +12,20 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  // POPRAWKA: Przekieruj, jeśli użytkownik jest już zalogowany
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await api.auth.getCurrentUser();
+        // Jeśli sukces, użytkownik jest zalogowany
+        router.push('/');
+      } catch (error) {
+        // Błąd, użytkownik nie jest zalogowany - zostań na stronie
+      }
+    };
+    checkAuth();
+  }, [router]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
@@ -21,19 +33,12 @@ export default function LoginPage() {
 
     try {
       await api.auth.login(username, password);
-      router.push('/');
-      router.refresh(); // Wymuś odświeżenie Sidebar
+      // Użyj twardego przeładowania, aby odświeżyć cały stan aplikacji
+      window.location.href = '/';
     } catch (err: any) {
-      // POPRAWKA LOGIKI:
-      // Zamiast sprawdzać tylko status 401, sprawdzamy, czy błąd
-      // pochodzi z naszego API (ma pole `data` i `data.error`)
-      // i wyświetlamy wiadomość błędu bezpośrednio z backendu.
-      // Obsłuży to zarówno błąd 401 (Nieprawidłowe dane) 
-      // jak i 400 (Puste pola).
       if (err.data && err.data.error) {
         setError(err.data.error);
       } else {
-        // Błąd ogólny, np. problem z siecią
         setError('Wystąpił błąd podczas logowania. Spróbuj ponownie.');
       }
     } finally {
@@ -102,7 +107,7 @@ export default function LoginPage() {
 
           <button 
             type="submit"
-            disabled={isLoading || (!username || !password)} // Dodatkowe zabezpieczenie przycisku
+            disabled={isLoading}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Logowanie...' : 'Zaloguj się'}

@@ -203,8 +203,7 @@ export default function HomePage() {
         user = await api.auth.getCurrentUser();
         setCurrentUser(user);
       } catch (err) {
-        // POPRAWKA: To jest oczekiwane zachowanie dla gościa.
-        // Nie jest to błąd, po prostu nie ma użytkownika.
+        // To jest OK, użytkownik jest gościem.
         setCurrentUser(null);
       }
 
@@ -236,37 +235,25 @@ export default function HomePage() {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     
-    // POPRAWKA: Optymistyczne UI, aby licznik od razu się zmienił
-    const originalPosts = [...posts];
-    
-    const updatedPostOptimistic = {
-      ...post,
-      is_liked: !post.is_liked,
-      likes_count: post.is_liked ? post.likes_count - 1 : post.likes_count + 1,
-    };
-    
-    setPosts(currentPosts => 
-      currentPosts.map(p => (p.id === postId ? updatedPostOptimistic : p))
-    );
-
-    // Wyślij żądanie do API w tle
+    // Użyj danych zwróconych z serwera.
     try {
-      let updatedPostFromServer: Post;
+      let updatedPost: Post;
       if (post.is_liked) {
-        updatedPostFromServer = await api.posts.unlike(postId);
+        updatedPost = await api.posts.unlike(postId);
       } else {
-        updatedPostFromServer = await api.posts.like(postId);
+        updatedPost = await api.posts.like(postId);
       }
       
-      // Zsynchronizuj stan z serwerem (na wypadek rozbieżności)
+      // Zaktualizuj stan `posts` zamieniając stary post na nowy
       setPosts(currentPosts => 
-        currentPosts.map(p => (p.id === updatedPostFromServer.id ? updatedPostFromServer : p))
+        currentPosts.map(p => (p.id === updatedPost.id ? updatedPost : p))
       );
       
     } catch (err) {
       console.error('Błąd podczas polubienia posta', err);
-      // Wycofaj zmiany w razie błędu
-      setPosts(originalPosts);
+      // W razie błędu, odśwież wszystko
+      const response = await api.posts.list();
+      setPosts(response.results);
     }
   };
   
@@ -302,7 +289,7 @@ export default function HomePage() {
       );
     }
 
-    // POPRAWKA: Jeśli nie jest zalogowany (po zakończeniu ładowania)
+    // Widok dla gościa (niezalogowanego)
     if (!currentUser) {
       return (
         <div className="border-b border-gray-200 p-8 text-center bg-gray-50">
@@ -322,7 +309,7 @@ export default function HomePage() {
       );
     }
     
-    // Jest zalogowany
+    // Widok dla zalogowanego
     return (
       <>
         <CreatePost onPostCreated={handlePostCreated} currentUser={currentUser} />
@@ -333,7 +320,7 @@ export default function HomePage() {
           </div>
         ) : posts.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            Brak postów do wyświetlenia. Obserwuj kogoś lub napisz pierwszy post!
+            Brak postów do wyświetlenia. Napisz pierwszy post!
           </div>
         ) : (
           <div>

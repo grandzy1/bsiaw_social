@@ -156,10 +156,14 @@ async function authenticatedFetch(
   if (response.status === 401 && !url.includes('/api/auth/login') && !isRefreshing) {
     const refreshToken = getRefreshToken();
 
-    // POPRAWKA: Jeśli nie ma refresh tokena, po prostu zgłoś błąd.
-    // Nie przekierowuj. Komponent (np. page.tsx) zdecyduje co robić.
     if (!refreshToken) {
       clearTokens();
+      // POPRAWKA: Jeśli to GET (np. getCurrentUser), po prostu zgłoś błąd.
+      // Strona (np. page.tsx) to obsłuży i pokaże widok dla gościa.
+      // Przekieruj tylko jeśli to było żądanie POST/itp., które faktycznie zawiodło.
+      if (method !== 'GET') {
+        window.location.href = '/login';
+      }
       throw new APIError(401, { detail: 'Brak refresh tokena.' });
     }
 
@@ -185,7 +189,7 @@ async function authenticatedFetch(
 
     } catch (refreshError) {
       clearTokens();
-      // POPRAWKA: Przekieruj tylko jeśli odświeżanie się nie powiedzie.
+      // TUTAJ przekierowanie jest POPRAWNE, bo sesja wygasła
       window.location.href = '/login'; 
       throw new APIError(401, { detail: 'Sesja wygasła.' });
     } finally {

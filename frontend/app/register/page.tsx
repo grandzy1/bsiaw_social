@@ -1,10 +1,8 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// ZMIANA: Poprawiona ścieżka importu
 import Logo from '@/app/components/Logo';
-// ZMIANA: Poprawiona ścieżka importu
 import { api } from '@/lib/api';
 
 export default function RegisterPage() {
@@ -15,6 +13,20 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // POPRAWKA: Przekieruj, jeśli użytkownik jest już zalogowany
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await api.auth.getCurrentUser();
+        // Jeśli sukces, użytkownik jest zalogowany
+        router.push('/');
+      } catch (error) {
+        // Błąd, użytkownik nie jest zalogowany - zostań na stronie
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -35,8 +47,8 @@ export default function RegisterPage() {
 
     try {
       await api.auth.register(username, email, password);
-      router.push('/');
-      router.refresh(); // Wymuś odświeżenie Sidebar
+      // Użyj twardego przeładowania, aby odświeżyć cały stan aplikacji
+      window.location.href = '/';
     } catch (err: any) {
       if (err.data) {
         // Obsługa błędów z backendu

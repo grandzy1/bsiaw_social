@@ -92,11 +92,10 @@ async function getCSRFToken(): Promise<string> {
   }
   
   try {
-    // Używamy fetch, a nie authenticatedFetch, aby uniknąć pętli
     await fetch(`${API_BASE_URL}/auth/csrf/`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'omit', // Nie wysyłaj tokenów auth po ten token
+      credentials: 'include',
     });
     
     // Odczytujemy cookie
@@ -116,7 +115,6 @@ async function getCSRFToken(): Promise<string> {
 
 // --- Główny Wrapper `fetch` ---
 
-// Zmienna do śledzenia, czy odświeżanie jest w toku
 let isRefreshing = false;
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -135,48 +133,44 @@ async function authenticatedFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   
-  // 1. Przygotuj nagłówki
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
   
-  // Dołącz CSRF dla metod modyfikujących dane
   const method = options.method?.toUpperCase() || 'GET';
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    const token = await getCSRFToken();
-    if (token) {
-      headers.set('X-CSRFToken', token);
+    if (!url.includes('/api/auth/refresh/')) {
+      const token = await getCSRFToken();
+      if (token) {
+        headers.set('X-CSRFToken', token);
+      }
     }
   }
   
-  // Dołącz token dostępu
   const accessToken = getAccessToken();
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  // 2. Wykonaj żądanie
-  let response = await fetch(url, { ...options, headers });
+  let response = await fetch(url, { ...options, headers, credentials: 'include' });
 
-  // 3. Obsługa 401 (Token wygasł)
-  if (response.status === 401 && !isRefreshing) {
-    isRefreshing = true;
+  if (response.status === 401 && !url.includes('/api/auth/login') && !isRefreshing) {
     const refreshToken = getRefreshToken();
 
+    // POPRAWKA: Jeśli nie ma refresh tokena, po prostu zgłoś błąd.
+    // Nie przekierowuj. Komponent (np. page.tsx) zdecyduje co robić.
     if (!refreshToken) {
       clearTokens();
-      // Tylko przekieruj, jeśli to nie jest próba logowania
-      if (!url.includes('/api/auth/login')) {
-         window.location.href = '/login';
-      }
       throw new APIError(401, { detail: 'Brak refresh tokena.' });
     }
 
+    // Spróbuj odświeżyć token
+    isRefreshing = true;
     try {
-      // 4. Spróbuj odświeżyć token
       const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh: refreshToken }),
+        credentials: 'omit', 
       });
 
       if (!refreshResponse.ok) {
@@ -186,14 +180,13 @@ async function authenticatedFetch(
       const { access: newAccessToken } = await refreshResponse.json();
       localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
       
-      // 5. Ponów pierwotne żądanie z nowym tokenem
       headers.set('Authorization', `Bearer ${newAccessToken}`);
-      response = await fetch(url, { ...options, headers });
+      response = await fetch(url, { ...options, headers, credentials: 'include' });
 
     } catch (refreshError) {
-      // 6. Odświeżenie się nie powiodło (np. refresh token też wygasł)
       clearTokens();
-      window.location.href = '/login'; // Wymuś wylogowanie
+      // POPRAWKA: Przekieruj tylko jeśli odświeżanie się nie powiedzie.
+      window.location.href = '/login'; 
       throw new APIError(401, { detail: 'Sesja wygasła.' });
     } finally {
       isRefreshing = false;
@@ -207,7 +200,6 @@ async function authenticatedFetch(
 export const api = {
   auth: {
     async register(username: string, email: string, password: string): Promise<AuthResponse> {
-      // POPRAWKA: Używamy zwykłego 'fetch' i ręcznie budujemy nagłówki
       const csrf = await getCSRFToken();
       const response = await fetch(`${API_BASE_URL}/auth/register/`, {
         method: 'POST',
@@ -215,11 +207,11 @@ export const api = {
           'Content-Type': 'application/json',
           'X-CSRFToken': csrf
         },
+        credentials: 'include',
         body: JSON.stringify({ username, email, password, password2: password }),
       });
       const data = await handleResponse<AuthResponse>(response);
       
-      // Zapisz tokeny, jeśli istnieją
       if (data.access && data.refresh) {
         setTokens(data.access, data.refresh);
       }
@@ -227,7 +219,6 @@ export const api = {
     },
 
     async login(username: string, password: string): Promise<AuthResponse> {
-      // POPRAWKA: Używamy zwykłego 'fetch' i ręcznie budujemy nagłówki
       const csrf = await getCSRFToken();
       const response = await fetch(`${API_BASE_URL}/auth/login/`, {
         method: 'POST',
@@ -235,11 +226,11 @@ export const api = {
           'Content-Type': 'application/json',
           'X-CSRFToken': csrf
         },
+        credentials: 'include', 
         body: JSON.stringify({ username, password }),
       });
       const data = await handleResponse<AuthResponse>(response);
       
-      // Zapisz tokeny, jeśli istnieją
       if (data.access && data.refresh) {
         setTokens(data.access, data.refresh);
       }
@@ -250,7 +241,6 @@ export const api = {
       const refreshToken = getRefreshToken();
       if (refreshToken) {
         try {
-          // Wyślij token do blacklisty (użyj authenticatedFetch, on ma logikę CSRF)
           await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
             method: 'POST',
             body: JSON.stringify({ refresh: refreshToken }),
@@ -259,7 +249,6 @@ export const api = {
           console.error("Błąd podczas wylogowania na backendzie", error);
         }
       }
-      // Zawsze czyść tokeny na frontendzie
       clearTokens();
       csrfToken = null;
     },

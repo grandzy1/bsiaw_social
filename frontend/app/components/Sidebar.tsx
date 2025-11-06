@@ -46,13 +46,9 @@ export default function Sidebar() {
     } catch (err) {
       console.error('Błąd podczas wylogowania', err);
     } finally {
-      // POPRAWKA: Zawsze czyść stan i przekierowuj
-      setCurrentUser(null);
-      // Używamy twardego przeładowania LUB router.refresh()
-      // router.refresh() jest lepsze dla Next.js
-      router.push('/');
-      router.refresh();
-      // window.location.href = '/'; // Opcja alternatywna
+      // POPRAWKA: Użyj twardego przeładowania, aby
+      // wymusić odświeżenie stanu na wszystkich komponentach.
+      window.location.href = '/';
     }
   };
 
@@ -94,14 +90,6 @@ export default function Sidebar() {
               <span className="text-xl font-bold">Wyloguj</span>
             </button>
 
-            {/* Przycisk publikowania */}
-            <button 
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4"
-            >
-              Opublikuj
-            </button>
-
             {/* Info o użytkowniku */}
             <div className="mt-auto pt-4 border-t border-gray-200">
               <div className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 cursor-pointer">
@@ -119,20 +107,13 @@ export default function Sidebar() {
           <>
             {/* Login dla niezalogowanych */}
             <Link 
-              href="/login"
+              href="/register"
               className="flex items-center space-x-4 p-3 pr-6 rounded-full hover:bg-gray-200 transition-colors duration-200 w-full"
             >
               <ProfileIcon />
-              <span className="text-xl font-bold">Zaloguj się</span>
+              <span className="text-xl font-bold">Zarejestruj się</span>
             </Link>
 
-            {/* Przycisk rejestracji */}
-            <Link 
-              href="/register"
-              className="text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full w-full text-lg mt-4"
-            >
-              Zarejestruj się
-            </Link>
           </>
         )}
       </nav>

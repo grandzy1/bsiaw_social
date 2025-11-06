@@ -203,10 +203,9 @@ export default function HomePage() {
         user = await api.auth.getCurrentUser();
         setCurrentUser(user);
       } catch (err) {
+        // POPRAWKA: To jest oczekiwane zachowanie dla gościa.
+        // Nie jest to błąd, po prostu nie ma użytkownika.
         setCurrentUser(null);
-        // POPRAWKA: Skoro użytkownik nie jest zalogowany, nie próbuj ładować postów
-        setIsLoading(false);
-        return; // Zakończ ładowanie
       }
 
       // 2. Jeśli użytkownik jest zalogowany, załaduj posty
@@ -218,10 +217,11 @@ export default function HomePage() {
         } catch (err) {
           console.error(err);
           setError('Nie udało się załadować postów');
-        } finally {
-          setIsLoading(false);
         }
       }
+      
+      // 3. Zakończ ładowanie
+      setIsLoading(false);
     };
     
     loadData();
@@ -235,30 +235,43 @@ export default function HomePage() {
 
     const post = posts.find(p => p.id === postId);
     if (!post) return;
+    
+    // POPRAWKA: Optymistyczne UI, aby licznik od razu się zmienił
+    const originalPosts = [...posts];
+    
+    const updatedPostOptimistic = {
+      ...post,
+      is_liked: !post.is_liked,
+      likes_count: post.is_liked ? post.likes_count - 1 : post.likes_count + 1,
+    };
+    
+    setPosts(currentPosts => 
+      currentPosts.map(p => (p.id === postId ? updatedPostOptimistic : p))
+    );
 
+    // Wyślij żądanie do API w tle
     try {
-      let updatedPost: Post;
+      let updatedPostFromServer: Post;
       if (post.is_liked) {
-        updatedPost = await api.posts.unlike(postId);
+        updatedPostFromServer = await api.posts.unlike(postId);
       } else {
-        updatedPost = await api.posts.like(postId);
+        updatedPostFromServer = await api.posts.like(postId);
       }
       
+      // Zsynchronizuj stan z serwerem (na wypadek rozbieżności)
       setPosts(currentPosts => 
-        currentPosts.map(p => (p.id === updatedPost.id ? updatedPost : p))
+        currentPosts.map(p => (p.id === updatedPostFromServer.id ? updatedPostFromServer : p))
       );
       
     } catch (err) {
       console.error('Błąd podczas polubienia posta', err);
-      // Odśwież na wszelki wypadek
-      const response = await api.posts.list();
-      setPosts(response.results);
+      // Wycofaj zmiany w razie błędu
+      setPosts(originalPosts);
     }
   };
   
   // Funkcja wywoływana po utworzeniu posta (przez CreatePost)
   const handlePostCreated = async () => {
-    // Po prostu załaduj listę postów od nowa
     try {
       const response = await api.posts.list();
       setPosts(response.results);
@@ -289,7 +302,7 @@ export default function HomePage() {
       );
     }
 
-    // Jeśli nie jest zalogowany (po zakończeniu ładowania)
+    // POPRAWKA: Jeśli nie jest zalogowany (po zakończeniu ładowania)
     if (!currentUser) {
       return (
         <div className="border-b border-gray-200 p-8 text-center bg-gray-50">

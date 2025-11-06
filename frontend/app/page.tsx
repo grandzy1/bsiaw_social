@@ -193,33 +193,39 @@ export default function HomePage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const loadPosts = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.posts.list();
-      setPosts(response.results);
-      setError('');
-    } catch (err) {
-      console.error(err);
-      setError('Nie udało się załadować postów');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadCurrentUser = async () => {
-    try {
-      const user = await api.auth.getCurrentUser();
-      setCurrentUser(user);
-    } catch (err) {
-      setCurrentUser(null);
-    }
-  };
-
   useEffect(() => {
-    loadPosts();
-    loadCurrentUser();
-  }, [pathname]);
+    const loadData = async () => {
+      setIsLoading(true);
+      let user: Profile | null = null;
+      
+      // 1. Sprawdź, czy użytkownik jest zalogowany
+      try {
+        user = await api.auth.getCurrentUser();
+        setCurrentUser(user);
+      } catch (err) {
+        setCurrentUser(null);
+        // POPRAWKA: Skoro użytkownik nie jest zalogowany, nie próbuj ładować postów
+        setIsLoading(false);
+        return; // Zakończ ładowanie
+      }
+
+      // 2. Jeśli użytkownik jest zalogowany, załaduj posty
+      if (user) {
+        try {
+          const response = await api.posts.list();
+          setPosts(response.results);
+          setError('');
+        } catch (err) {
+          console.error(err);
+          setError('Nie udało się załadować postów');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadData();
+  }, [pathname]); // Zależność od pathname zapewnia odświeżenie po nawigacji
 
   const handleLike = async (postId: number) => {
     if (!currentUser) {
@@ -230,20 +236,35 @@ export default function HomePage() {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    // ZMIANA: Usunięto optymistyczne UI, aby naprawić błąd -1
-    // Zamiast tego, po prostu wywołujemy API i odświeżamy *wszystkie* posty.
     try {
+      let updatedPost: Post;
       if (post.is_liked) {
-        await api.posts.unlike(postId);
+        updatedPost = await api.posts.unlike(postId);
       } else {
-        await api.posts.like(postId);
+        updatedPost = await api.posts.like(postId);
       }
-      // Po udanej operacji, odśwież listę postów z serwera
-      await loadPosts(); 
+      
+      setPosts(currentPosts => 
+        currentPosts.map(p => (p.id === updatedPost.id ? updatedPost : p))
+      );
+      
     } catch (err) {
       console.error('Błąd podczas polubienia posta', err);
-      // Jeśli wystąpi błąd, i tak odświeżamy
-      await loadPosts();
+      // Odśwież na wszelki wypadek
+      const response = await api.posts.list();
+      setPosts(response.results);
+    }
+  };
+  
+  // Funkcja wywoływana po utworzeniu posta (przez CreatePost)
+  const handlePostCreated = async () => {
+    // Po prostu załaduj listę postów od nowa
+    try {
+      const response = await api.posts.list();
+      setPosts(response.results);
+    } catch (err) {
+      console.error(err);
+      setError('Nie udało się odświeżyć postów');
     }
   };
 
@@ -258,6 +279,66 @@ export default function HomePage() {
     }
   };
 
+  // Renderowanie treści
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="p-8 text-center text-gray-500">
+          Ładowanie...
+        </div>
+      );
+    }
+
+    // Jeśli nie jest zalogowany (po zakończeniu ładowania)
+    if (!currentUser) {
+      return (
+        <div className="border-b border-gray-200 p-8 text-center bg-gray-50">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Witaj w Y.com
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Zaloguj się, aby zobaczyć posty i dołączyć do społeczności.
+          </p>
+          <Link 
+            href="/login" 
+            className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full transition-colors"
+          >
+            Zaloguj się
+          </Link>
+        </div>
+      );
+    }
+    
+    // Jest zalogowany
+    return (
+      <>
+        <CreatePost onPostCreated={handlePostCreated} currentUser={currentUser} />
+        
+        {error ? (
+          <div className="p-8 text-center text-red-500">
+            {error}
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            Brak postów do wyświetlenia. Obserwuj kogoś lub napisz pierwszy post!
+          </div>
+        ) : (
+          <div>
+            {posts.map(post => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onLike={handleLike}
+                onDelete={handleDelete}
+                currentUser={currentUser}
+              />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
     <main className="bg-white min-h-screen text-gray-900">
       <div className="flex max-w-7xl mx-auto">
@@ -267,51 +348,9 @@ export default function HomePage() {
           <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
             <h1 className="text-xl font-bold p-4">Strona główna</h1>
           </header>
+          
+          {renderContent()}
 
-          {currentUser ? (
-            <CreatePost onPostCreated={loadPosts} currentUser={currentUser} />
-          ) : (
-            <div className="border-b border-gray-200 p-8 text-center bg-gray-50">
-              <h2 className="text-xl font-bold text-gray-800 mb-2">
-                Zaloguj się, aby publikować
-              </h2>
-              <p className="text-gray-600 mb-4">
-                Dołącz do społeczności i dziel się swoimi myślami
-              </p>
-              <Link 
-                href="/login" 
-                className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full transition-colors"
-              >
-                Zaloguj się
-              </Link>
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="p-8 text-center text-gray-500">
-              Ładowanie postów...
-            </div>
-          ) : error ? (
-            <div className="p-8 text-center text-red-500">
-              {error}
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              Brak postów do wyświetlenia
-            </div>
-          ) : (
-            <div>
-              {posts.map(post => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onLike={handleLike}
-                  onDelete={handleDelete}
-                  currentUser={currentUser}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </main>

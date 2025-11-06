@@ -3,10 +3,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
+# POPRAWKA: Importujemy oficjalny widok simplejwt
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.views import (
     PostViewSet, ProfileViewSet, CommentViewSet,
-    register, login, logout, current_user, refresh_token, get_csrf_token
+    register, login, logout, current_user, get_csrf_token
 )
 
 router = DefaultRouter()
@@ -21,11 +23,12 @@ urlpatterns = [
     # API endpoints
     path('api/', include(router.urls)),
     
-    # Autentykacja JWT
+    # Autentykacja
     path('api/auth/register/', register, name='register'),
     path('api/auth/login/', login, name='login'),
     path('api/auth/logout/', logout, name='logout'),
-    path('api/auth/refresh/', refresh_token, name='refresh-token'),
+    # POPRAWKA: Używamy standardowego widoku do odświeżania tokenu
+    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/user/', current_user, name='current-user'),
     path('api/auth/csrf/', get_csrf_token, name='csrf-token'),
 ]

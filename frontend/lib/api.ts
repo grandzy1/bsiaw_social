@@ -1,8 +1,8 @@
-'use client' // Dodajemy 'use client', ponieważ ten plik będzie używany w komponentach klienckich
+'use client' 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
-// Typy danych
+// --- Typy Danych ---
 export interface User {
   id: number;
   username: string;
@@ -21,6 +21,8 @@ export interface Profile {
 export interface AuthResponse {
   user: Profile;
   message: string;
+  access?: string;
+  refresh?: string;
 }
 
 export interface Post {
@@ -45,26 +47,59 @@ export interface Comment {
   created_at: string;
 }
 
-// Obsługa błędów API
+// --- Obsługa Błędów ---
 class APIError extends Error {
   constructor(public status: number, public data: any) {
     super(`API Error: ${status}`);
   }
 }
 
-// Zarządzanie tokenem CSRF
-let csrfToken: string | null = null;
+// --- Zarządzanie Tokenami (localStorage) ---
+const ACCESS_TOKEN_KEY = 'access_token';
+const REFRESH_TOKEN_KEY = 'refresh_token';
 
+// Sprawdzamy, czy jesteśmy w przeglądarce
+const isBrowser = () => typeof window !== 'undefined';
+
+const setTokens = (access: string, refresh: string) => {
+  if (isBrowser()) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, access);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+  }
+};
+
+const getAccessToken = (): string | null => {
+  return isBrowser() ? localStorage.getItem(ACCESS_TOKEN_KEY) : null;
+};
+
+const getRefreshToken = (): string | null => {
+  return isBrowser() ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
+};
+
+const clearTokens = () => {
+  if (isBrowser()) {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+};
+
+// --- CSRF (Nadal potrzebne dla POST/PUT/DELETE) ---
+let csrfToken: string | null = null;
 async function getCSRFToken(): Promise<string> {
-  if (csrfToken) return csrfToken;
+  // Jeśli już pobraliśmy token, użyj go ponownie
+  if (csrfToken && isBrowser() && document.cookie.includes('csrftoken')) {
+    return csrfToken;
+  }
   
   try {
+    // Używamy fetch, a nie authenticatedFetch, aby uniknąć pętli
     await fetch(`${API_BASE_URL}/auth/csrf/`, {
-      credentials: 'include',
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'omit', // Nie wysyłaj tokenów auth po ten token
     });
     
-    // Sprawdzanie document.cookie jest jedynym sposobem na odczytanie
-    // tokenu CSRF, który celowo NIE jest HttpOnly.
+    // Odczytujemy cookie
     const cookies = document.cookie.split(';');
     for (let cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
@@ -79,24 +114,13 @@ async function getCSRFToken(): Promise<string> {
   return '';
 }
 
-// Helper do tworzenia nagłówków
-async function getHeaders(includeCSRF: boolean = true): Promise<HeadersInit> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
+// --- Główny Wrapper `fetch` ---
 
-  if (includeCSRF) {
-    const token = await getCSRFToken();
-    if (token) {
-      headers['X-CSRFToken'] = token;
-    }
-  }
-
-  return headers;
-}
+// Zmienna do śledzenia, czy odświeżanie jest w toku
+let isRefreshing = false;
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  if (response.status === 204) { // Dla zapytań DELETE
+  if (response.status === 204) {
     return {} as T;
   }
   if (!response.ok) {
@@ -106,165 +130,190 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-// Automatyczne odświeżanie tokenu
-async function refreshAccessToken(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh/`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: await getHeaders(),
-    });
-    
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Wrapper dla fetch z automatycznym odświeżaniem
 async function authenticatedFetch(
   url: string, 
   options: RequestInit = {}
 ): Promise<Response> {
-  let response = await fetch(url, {
-    ...options,
-    credentials: 'include',
-  });
   
-  if (response.status === 401) {
-    const refreshed = await refreshAccessToken();
-    
-    if (refreshed) {
-      response = await fetch(url, {
-        ...options,
-        credentials: 'include',
-      });
-    } else {
-      // Jeśli odświeżenie się nie powiodło, rzuć błąd
-      throw new APIError(401, { detail: 'Sesja wygasła.' });
+  // 1. Przygotuj nagłówki
+  const headers = new Headers(options.headers || {});
+  headers.set('Content-Type', 'application/json');
+  
+  // Dołącz CSRF dla metod modyfikujących dane
+  const method = options.method?.toUpperCase() || 'GET';
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const token = await getCSRFToken();
+    if (token) {
+      headers.set('X-CSRFToken', token);
     }
   }
   
+  // Dołącz token dostępu
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  // 2. Wykonaj żądanie
+  let response = await fetch(url, { ...options, headers });
+
+  // 3. Obsługa 401 (Token wygasł)
+  if (response.status === 401 && !isRefreshing) {
+    isRefreshing = true;
+    const refreshToken = getRefreshToken();
+
+    if (!refreshToken) {
+      clearTokens();
+      // Tylko przekieruj, jeśli to nie jest próba logowania
+      if (!url.includes('/api/auth/login')) {
+         window.location.href = '/login';
+      }
+      throw new APIError(401, { detail: 'Brak refresh tokena.' });
+    }
+
+    try {
+      // 4. Spróbuj odświeżyć token
+      const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!refreshResponse.ok) {
+        throw new Error('Odświeżenie tokena nie powiodło się');
+      }
+
+      const { access: newAccessToken } = await refreshResponse.json();
+      localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
+      
+      // 5. Ponów pierwotne żądanie z nowym tokenem
+      headers.set('Authorization', `Bearer ${newAccessToken}`);
+      response = await fetch(url, { ...options, headers });
+
+    } catch (refreshError) {
+      // 6. Odświeżenie się nie powiodło (np. refresh token też wygasł)
+      clearTokens();
+      window.location.href = '/login'; // Wymuś wylogowanie
+      throw new APIError(401, { detail: 'Sesja wygasła.' });
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
   return response;
 }
 
-// API Client
+// --- API Client ---
 export const api = {
   auth: {
     async register(username: string, email: string, password: string): Promise<AuthResponse> {
+      // POPRAWKA: Używamy zwykłego 'fetch' i ręcznie budujemy nagłówki
+      const csrf = await getCSRFToken();
       const response = await fetch(`${API_BASE_URL}/auth/register/`, {
         method: 'POST',
-        headers: await getHeaders(),
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf
+        },
         body: JSON.stringify({ username, email, password, password2: password }),
       });
-      return handleResponse<AuthResponse>(response);
+      const data = await handleResponse<AuthResponse>(response);
+      
+      // Zapisz tokeny, jeśli istnieją
+      if (data.access && data.refresh) {
+        setTokens(data.access, data.refresh);
+      }
+      return data;
     },
 
     async login(username: string, password: string): Promise<AuthResponse> {
+      // POPRAWKA: Używamy zwykłego 'fetch' i ręcznie budujemy nagłówki
+      const csrf = await getCSRFToken();
       const response = await fetch(`${API_BASE_URL}/auth/login/`, {
         method: 'POST',
-        headers: await getHeaders(),
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf
+        },
         body: JSON.stringify({ username, password }),
       });
-      return handleResponse<AuthResponse>(response);
+      const data = await handleResponse<AuthResponse>(response);
+      
+      // Zapisz tokeny, jeśli istnieją
+      if (data.access && data.refresh) {
+        setTokens(data.access, data.refresh);
+      }
+      return data;
     },
 
     async logout(): Promise<void> {
-      try {
-        await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
-          method: 'POST',
-          headers: await getHeaders(),
-        });
-      } catch (error) {
-        if (error instanceof APIError && error.status === 401) {
-           // OK, użytkownik i tak był wylogowany
-        } else {
-          console.error('Błąd podczas wylogowania', error);
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          // Wyślij token do blacklisty (użyj authenticatedFetch, on ma logikę CSRF)
+          await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
+            method: 'POST',
+            body: JSON.stringify({ refresh: refreshToken }),
+          });
+        } catch (error) {
+          console.error("Błąd podczas wylogowania na backendzie", error);
         }
       }
+      // Zawsze czyść tokeny na frontendzie
+      clearTokens();
       csrfToken = null;
     },
 
     async getCurrentUser(): Promise<Profile> {
-      const response = await authenticatedFetch(`${API_BASE_URL}/auth/user/`, {
-        headers: await getHeaders(false),
-      });
+      const response = await authenticatedFetch(`${API_BASE_URL}/auth/user/`);
       return handleResponse<Profile>(response);
-    },
-
-    async refreshToken(): Promise<boolean> {
-      return refreshAccessToken();
     },
   },
 
   posts: {
     async list(page: number = 1): Promise<{ results: Post[]; count: number; next: string | null; previous: string | null }> {
-      const response = await fetch(
-        `${API_BASE_URL}/posts/?page=${page}`,
-        { headers: await getHeaders(false), credentials: 'include' }
-      );
+      const response = await authenticatedFetch(`${API_BASE_URL}/posts/?page=${page}`);
       return handleResponse(response);
     },
 
     async create(content: string): Promise<Post> {
       const response = await authenticatedFetch(`${API_BASE_URL}/posts/`, {
         method: 'POST',
-        headers: await getHeaders(),
         body: JSON.stringify({ content }),
       });
       return handleResponse<Post>(response);
     },
 
     async get(id: number): Promise<Post> {
-      const response = await fetch(
-        `${API_BASE_URL}/posts/${id}/`,
-        { headers: await getHeaders(false), credentials: 'include' }
-      );
+      const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/`);
       return handleResponse<Post>(response);
     },
 
     async delete(id: number): Promise<void> {
       const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/`, {
         method: 'DELETE',
-        headers: await getHeaders(),
       });
-      await handleResponse(response); // Czekaj na odpowiedź 204
+      await handleResponse(response);
     },
 
-    async like(id: number): Promise<void> {
+    async like(id: number): Promise<Post> {
       const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/like/`, {
         method: 'POST',
-        headers: await getHeaders(),
       });
-      await handleResponse(response); // Czekaj na odpowiedź
+      return handleResponse<Post>(response);
     },
 
-    async unlike(id: number): Promise<void> {
+    async unlike(id: number): Promise<Post> {
       const response = await authenticatedFetch(`${API_BASE_URL}/posts/${id}/unlike/`, {
         method: 'POST',
-        headers: await getHeaders(),
       });
-      await handleResponse(response); // Czekaj na odpowiedź
-    },
-
-    async getUserPosts(username: string): Promise<Post[]> {
-      const response = await fetch(
-        `${API_BASE_URL}/posts/user_posts/?username=${username}`,
-        { headers: await getHeaders(false), credentials: 'include' }
-      );
-      const data = await handleResponse<{ results: Post[] }>(response);
-      return data.results;
+      return handleResponse<Post>(response);
     },
   },
 
   comments: {
     async list(postId: number): Promise<Comment[]> {
-      const response = await fetch(
-        `${API_BASE_URL}/comments/?post_id=${postId}`,
-        { headers: await getHeaders(false), credentials: 'include' }
-      );
+      const response = await authenticatedFetch(`${API_BASE_URL}/comments/?post_id=${postId}`);
       const data = await handleResponse<{ results: Comment[] }>(response);
       return data.results;
     },
@@ -272,26 +321,23 @@ export const api = {
     async create(postId: number, content: string): Promise<Comment> {
       const response = await authenticatedFetch(`${API_BASE_URL}/comments/`, {
         method: 'POST',
-        headers: await getHeaders(),
         body: JSON.stringify({ post: postId, content }),
       });
       return handleResponse<Comment>(response);
     },
-
+    
     async delete(id: number): Promise<void> {
       const response = await authenticatedFetch(`${API_BASE_URL}/comments/${id}/`, {
         method: 'DELETE',
-        headers: await getHeaders(),
       });
-      await handleResponse(response); // Czekaj na odpowiedź
+      await handleResponse(response); 
     },
   },
 
   profiles: {
     async get(id: number): Promise<Profile> {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `${API_BASE_URL}/profiles/${id}/`,
-        { headers: await getHeaders(false), credentials: 'include' }
       );
       return handleResponse<Profile>(response);
     },
@@ -299,7 +345,6 @@ export const api = {
     async update(id: number, data: Partial<Profile>): Promise<Profile> {
       const response = await authenticatedFetch(`${API_BASE_URL}/profiles/${id}/`, {
         method: 'PATCH',
-        headers: await getHeaders(),
         body: JSON.stringify(data),
       });
       return handleResponse<Profile>(response);

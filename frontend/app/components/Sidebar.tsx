@@ -43,11 +43,16 @@ export default function Sidebar() {
   const handleLogout = async () => {
     try {
       await api.auth.logout();
-      setCurrentUser(null);
-      // Używamy twardego przeładowania, aby wyczyścić stan
-      window.location.href = '/'; 
     } catch (err) {
       console.error('Błąd podczas wylogowania', err);
+    } finally {
+      // POPRAWKA: Zawsze czyść stan i przekierowuj
+      setCurrentUser(null);
+      // Używamy twardego przeładowania LUB router.refresh()
+      // router.refresh() jest lepsze dla Next.js
+      router.push('/');
+      router.refresh();
+      // window.location.href = '/'; // Opcja alternatywna
     }
   };
 

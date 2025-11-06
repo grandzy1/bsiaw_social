@@ -24,9 +24,16 @@ export default function LoginPage() {
       router.push('/');
       router.refresh(); // Wymuś odświeżenie Sidebar
     } catch (err: any) {
-      if (err.status === 401) { // Poprawka na status 401 (zamiast 400)
-        setError('Nieprawidłowa nazwa użytkownika lub hasło');
+      // POPRAWKA LOGIKI:
+      // Zamiast sprawdzać tylko status 401, sprawdzamy, czy błąd
+      // pochodzi z naszego API (ma pole `data` i `data.error`)
+      // i wyświetlamy wiadomość błędu bezpośrednio z backendu.
+      // Obsłuży to zarówno błąd 401 (Nieprawidłowe dane) 
+      // jak i 400 (Puste pola).
+      if (err.data && err.data.error) {
+        setError(err.data.error);
       } else {
+        // Błąd ogólny, np. problem z siecią
         setError('Wystąpił błąd podczas logowania. Spróbuj ponownie.');
       }
     } finally {
@@ -95,7 +102,7 @@ export default function LoginPage() {
 
           <button 
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (!username || !password)} // Dodatkowe zabezpieczenie przycisku
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Logowanie...' : 'Zaloguj się'}

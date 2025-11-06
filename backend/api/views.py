@@ -9,6 +9,9 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 
+# Importujemy ustawienia
+from django.conf import settings
+
 from .models import Profile, Post, Like, Comment
 from .serializers import (
     UserSerializer, ProfileSerializer, RegisterSerializer,
@@ -20,8 +23,8 @@ from .serializers import (
 @permission_classes([permissions.AllowAny])
 def register(request):
     """
-    Rejestracja nowego użytkownika
-    Zwraca JWT tokens w httpOnly cookies
+    Rejestracja nowego użytkownika.
+    POPRAWKA: Zwraca tokeny w ciele JSON, zamiast w cookies.
     """
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
@@ -32,35 +35,15 @@ def register(request):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
         
-        # POPRAWKA LOGIKI: Zwracamy pełny profil, a nie tylko dane usera
         profile_data = ProfileSerializer(user.profile).data
         
-        # Przygotuj response
-        response = Response({
-            'user': profile_data,  # Zwracamy obiekt profilu
-            'message': 'Użytkownik utworzony pomyślnie'
+        # POPRAWKA: Zwracamy tokeny w odpowiedzi
+        return Response({
+            'user': profile_data,
+            'message': 'Użytkownik utworzony pomyślnie',
+            'access': access_token,
+            'refresh': refresh_token
         }, status=status.HTTP_201_CREATED)
-        
-        # Ustaw tokeny w httpOnly cookies
-        response.set_cookie(
-            key='access_token',
-            value=access_token,
-            httponly=True,
-            secure=False,   # True w produkcji z HTTPS
-            samesite='Lax',
-            max_age=3600    # 1 godzina
-        )
-        
-        response.set_cookie(
-            key='refresh_token',
-            value=refresh_token,
-            httponly=True,
-            secure=False,
-            samesite='Lax',
-            max_age=604800  # 7 dni
-        )
-        
-        return response
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -69,8 +52,8 @@ def register(request):
 @permission_classes([permissions.AllowAny])
 def login(request):
     """
-    Logowanie użytkownika
-    Zwraca JWT tokens w httpOnly cookies
+    Logowanie użytkownika.
+    POPRAWKA: Zwraca tokeny w ciele JSON, zamiast w cookies.
     """
     username = request.data.get('username')
     password = request.data.get('password')
@@ -94,106 +77,50 @@ def login(request):
     access_token = str(refresh.access_token)
     refresh_token = str(refresh)
     
-    # POPRAWKA LOGIKI: Zwracamy pełny profil
     profile_data = ProfileSerializer(user.profile).data
     
-    # Przygotuj response
-    response = Response({
-        'user': profile_data, # Zwracamy obiekt profilu
-        'message': 'Zalogowano pomyślnie'
+    # POPRAWKA: Zwracamy tokeny w odpowiedzi
+    return Response({
+        'user': profile_data,
+        'message': 'Zalogowano pomyślnie',
+        'access': access_token,
+        'refresh': refresh_token
     })
-    
-    # Ustaw tokeny w httpOnly cookies
-    response.set_cookie(
-        key='access_token',
-        value=access_token,
-        httponly=True,
-        secure=False,
-        samesite='Lax',
-        max_age=3600
-    )
-    
-    response.set_cookie(
-        key='refresh_token',
-        value=refresh_token,
-        httponly=True,
-        secure=False,
-        samesite='Lax',
-        max_age=604800
-    )
-    
-    return response
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny]) # Zezwól każdemu, aby mógł się wylogować (wysłać token do blacklisty)
 def logout(request):
     """
-    Wylogowanie - blacklist refresh token i usuń cookies
+    Wylogowanie - blacklist refresh token.
+    POPRAWKA: Oczekuje 'refresh_token' w ciele JSON.
     """
-    try:
-        refresh_token = request.COOKIES.get('refresh_token')
-        if refresh_token:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-    except TokenError:
-        pass
-    
-    response = Response({
-        'message': 'Wylogowano pomyślnie'
-    }, status=status.HTTP_200_OK)
-    
-    response.delete_cookie('access_token')
-    response.delete_cookie('refresh_token')
-    
-    return response
-
-
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def refresh_token(request):
-    """
-    Odśwież access token używając refresh token z cookie
-    """
-    refresh_token = request.COOKIES.get('refresh_token')
+    refresh_token = request.data.get('refresh')
     
     if not refresh_token:
-        return Response(
-            {'error': 'Refresh token nie znaleziony'},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-    
+        return Response({'error': 'Refresh token jest wymagany'}, status=status.HTTP_400_BAD_REQUEST)
+        
     try:
-        refresh = RefreshToken(refresh_token)
-        access_token = str(refresh.access_token)
-        
-        response = Response({
-            'message': 'Token odświeżony'
-        })
-        
-        response.set_cookie(
-            key='access_token',
-            value=access_token,
-            httponly=True,
-            secure=False,
-            samesite='Lax',
-            max_age=3600
-        )
-        
-        return response
-        
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+        return Response({'message': 'Wylogowano pomyślnie'}, status=status.HTTP_200_OK)
     except TokenError:
-        return Response(
-            {'error': 'Nieprawidłowy lub wygasły refresh token'},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({'error': 'Nieprawidłowy lub wygasły refresh token'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return Response({'error': 'Wystąpił błąd podczas wylogowania'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Ta niestandardowa funkcja nie jest już potrzebna, użyjemy standardowego widoku simplejwt
+# @api_view(['POST'])
+# @permission_classes([permissions.AllowAny])
+# def refresh_token(request):
+#     ...
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def current_user(request):
     """Pobierz dane profilu aktualnie zalogowanego użytkownika"""
-    # POPRAWKA LOGIKI: Zwracamy Profil zamiast User
     serializer = ProfileSerializer(request.user.profile)
     return Response(serializer.data)
 
@@ -209,7 +136,7 @@ def get_csrf_token(request):
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.select_related('user').all()
     serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Profile mogą być publiczne
 
     def update(self, request, *args, **kwargs):
         profile = self.get_object()
@@ -223,12 +150,18 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.select_related('author').prefetch_related('likes', 'comments').all()
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # POPRAWKA: Zmiana na IsAuthenticated, aby spełnić wymóg
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'create':
             return PostCreateSerializer
         return PostSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'request': self.request})
+        return context
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -245,33 +178,34 @@ class PostViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, pk=None):
         post = self.get_object()
-        like, created = Like.objects.get_or_create(user=request.user, post=post)
+        Like.objects.get_or_create(user=request.user, post=post)
         
-        if created:
-            return Response({'message': 'Post polubiony'}, status=status.HTTP_201_CREATED)
-        return Response({'message': 'Post już był polubiony'}, status=status.HTTP_200_OK)
+        post.refresh_from_db()
+        serializer = self.get_serializer(post)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def unlike(self, request, pk=None):
         post = self.get_object()
-        deleted_count, _ = Like.objects.filter(user=request.user, post=post).delete()
+        Like.objects.filter(user=request.user, post=post).delete()
         
-        if deleted_count > 0:
-            return Response({'message': 'Polubienie usunięte'}, status=status.HTTP_200_OK)
-        return Response({'message': 'Post nie był polubiony'}, status=status.HTTP_400_BAD_REQUEST)
+        post.refresh_from_db()
+        serializer = self.get_serializer(post)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.select_related('author', 'post').all()
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # POPRAWKA: Komentarze też powinny wymagać uwierzytelnienia do odczytu
+    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
         comment = self.get_object()
-        if comment.author != request.user and not request.user.is_staff:
+        if comment.author != request.user and not comment.author.is_staff:
             return Response(
                 {'error': 'Nie masz uprawnień do usunięcia tego komentarza'},
                 status=status.HTTP_403_FORBIDDEN

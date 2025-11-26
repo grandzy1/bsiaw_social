@@ -1,6 +1,6 @@
 'use client' 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'API_URL_ERROR';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-y.app/api';
 
 // --- Typy Danych ---
 export interface User {

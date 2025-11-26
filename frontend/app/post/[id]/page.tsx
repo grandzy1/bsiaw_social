@@ -18,7 +18,7 @@ const BackIcon = () => (
 const ReplyInput = ({ postId, onCommentPosted, focusRef }: { 
   postId: number; 
   onCommentPosted: () => void;
-  focusRef: React.RefObject<HTMLTextAreaElement>; 
+  focusRef: React.Ref<HTMLTextAreaElement>; 
 }) => {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

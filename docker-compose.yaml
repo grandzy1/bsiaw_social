@@ -31,7 +31,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+             gunicorn --bind 0.0.0.0:8000 --workers 3 project_config.wsgi:application"
     volumes:
       - ./backend:/app
       - static_volume:/app/staticfiles
@@ -57,7 +57,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ycom_frontend
-    command: npm run dev
+    command: >
+      sh -c "npm run build
+             npm run start"
     volumes:
       - ./frontend/app:/app/app
       - ./frontend/lib:/app/lib

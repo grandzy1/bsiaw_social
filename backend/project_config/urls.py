@@ -8,7 +8,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.views import (
     PostViewSet, ProfileViewSet, CommentViewSet,
-    register, login, logout, current_user, get_csrf_token
+    register, login, logout, current_user, get_csrf_token, health_check
 )
 
 router = DefaultRouter()
@@ -22,7 +22,9 @@ urlpatterns = [
     
     # API endpoints
     path('api/', include(router.urls)),
-    
+    # Health check 
+    path('health/', health_check, name='health_check'),
+
     # Autentykacja
     path('api/auth/register/', register, name='register'),
     path('api/auth/login/', login, name='login'),

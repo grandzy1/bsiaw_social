@@ -23,8 +23,17 @@ RUN pip install --upgrade pip && \
 # Kopiowanie aplikacji
 COPY . .
 
+# Migracje
+# 1. Kopiujemy skrypt entrypoint
+COPY entrypoint.sh /app/
+# 2. Nadajemy mu uprawnienia do uruchomienia
+RUN chmod +x /app/entrypoint.sh
+# 3. Ustawiamy go jako entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 # Tworzenie katalogów dla static i media
 RUN mkdir -p /app/staticfiles /app/media
+RUN python manage.py collectstatic --noinput
 
 # Ekspozycja portu
 EXPOSE 8000

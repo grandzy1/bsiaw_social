@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
-
+from django.http import HttpResponse
 # Importujemy ustawienia
 from django.conf import settings
 
@@ -136,7 +136,7 @@ def get_csrf_token(request):
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.select_related('user').all()
     serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Profile mogą być publiczne
+    permission_classes = [permissions.IsAuthenticated] # Profile mogą być publiczne
 
     def update(self, request, *args, **kwargs):
         profile = self.get_object()
@@ -218,3 +218,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         if post_id:
             queryset = queryset.filter(post_id=post_id)
         return queryset
+
+
+def health_check(request):
+    return HttpResponse("healthy",status=200)

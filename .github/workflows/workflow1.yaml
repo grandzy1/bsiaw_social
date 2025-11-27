@@ -57,7 +57,7 @@ jobs:
           cp .env backend/.env
 
       - name: Start Containers (Local GitHub Environment)
-        run: docker-compose up -d --build
+        run: docker compose up -d --build
 
       - name: Wait for services to be ready
         run: sleep 30
@@ -73,7 +73,7 @@ jobs:
 
       - name: Stop Containers
         if: always()
-        run: docker-compose down
+        run: docker compose down
 
   # ------------------------------------------------------------------
   # JOB 2: Deploy na Produkcję (Tylko Main)

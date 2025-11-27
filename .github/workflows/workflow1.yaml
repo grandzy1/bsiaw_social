@@ -168,5 +168,5 @@ jobs:
       # 6. Aktualizacja ECS
       - name: Force ECS Deployment
         run: |
-          aws ecs update-service --cluster bsiaw-social-cluster-v2 --service bsiaw-social-backend-svc-v2 --force-new-deployment
-          aws ecs update-service --cluster bsiaw-social-cluster-v2 --service bsiaw-social-frontend-svc-v2 --force-new-deployment
+          aws ecs update-service --cluster ycom-cluster-v2 --service ycom-backend-svc-v2 --force-new-deployment
+          aws ecs update-service --cluster ycom-cluster-v2 --service ycom-frontend-svc-v2 --force-new-deployment

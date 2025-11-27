@@ -1,0 +1,67 @@
+name: Infrastructure Deployment (Terraform Only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        env:
+          TF_VAR_db_password: ${{ secrets.PROD_DB_PASSWORD }}
+        run: |
+          terraform init
+          terraform apply -auto-approve
+          # Zapisz adres ALB do zmiennej, żeby przekazać go do Frontendu
+          echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_ENV
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPO: ycom-backend-v2
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG ./backend
+          # Oznaczamy też jako latest, żeby ECS łatwiej wstawał przy autoscalingu
+          docker tag $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:latest
+          docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO:latest
+
+      - name: Build and Push Frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPO: ycom-frontend-v2
+          IMAGE_TAG: ${{ github.sha }}
+          API_URL: "https://${{ env.ALB_DNS }}/api" 
+        run: |
+          docker build --build-arg NEXT_PUBLIC_API_URL=$API_URL -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG ./frontend
+          docker tag $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:latest
+          docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO:latest
+
+      - name: Force ECS Deployment
+        run: |
+          aws ecs update-service --cluster bsiaw-social-cluster-v2 --service bsiaw-social-backend-svc-v2 --force-new-deployment
+          aws ecs update-service --cluster bsiaw-social-cluster-v2 --service bsiaw-social-frontend-svc-v2 --force-new-deployment

@@ -119,8 +119,8 @@ resource "aws_lb_listener_rule" "api_routing_http" {
       values = ["/api/*"]
     }
   }
-  output "alb_dns_name" {
+}
+output "alb_dns_name" {
   description = "Adres DNS Load Balancera"
   value       = aws_lb.main.dns_name
-}
 }

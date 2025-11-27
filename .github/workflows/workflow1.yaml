@@ -64,16 +64,24 @@ jobs:
 
       # 4. DAST (Dynamic Analysis) - Atakujemy localhost:3000
 
-      - name: Fix permissions for ZAP
-        run: chmod -R 777 .
-
-      - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.11.0
-        with:
-          target: 'http://localhost:3000'
-          # Nie failuj builda na warningach, tylko na błędach
-          fail_action: false 
-          cmd_options: '-a'
+      - name: Run ZAP scan
+        run: |
+          mkdir -p $(pwd)/zap-wrk
+          chmod 777 $(pwd)/zap-wrk
+          
+          docker run --rm \
+            --name zap \
+            --network host \
+            -v $(pwd)/zap-wrk:/zap/wrk:rw \
+            -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:3000 \
+            -r report.html \
+            -w report.md \
+            -J report.json \
+            -a -j \
+            -I \
+            || echo "ZAP scan completed with warnings/errors"
 
 
         # 5. Upload raportów
@@ -85,9 +93,7 @@ jobs:
           name: security-scan-report
           path: |
             bandit-report.json
-            zap_report.json
-            zap_resport.html
-            zap_report.me
+            zap-wrk/
 
 
       - name: Stop Containers

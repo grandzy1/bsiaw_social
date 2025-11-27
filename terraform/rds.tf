@@ -35,7 +35,7 @@ resource "aws_db_instance" "default" {
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   # USTAWIĆ NA "7" NA PRODUKCJI !!!!
-  backup_retention_period = 7 
+  backup_retention_period = 0
   skip_final_snapshot     = true # Ważne przy testach (brak snapshota po usunięciu)
   
   # USTAWIĆ NA "TRUE" NA PRODUKCJI !!!!!!

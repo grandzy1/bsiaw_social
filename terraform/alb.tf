@@ -48,30 +48,14 @@ resource "aws_lb_target_group" "backend" {
   }
 }
 
-resource "aws_lb_listener" "http_redirect" {
+resource "aws_lb_listener" "https" {
   count = var.certificate_arn != "" ? 1 : 0
 
   load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type = "redirect"
-
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
-    }
-  }
-}
-
-resource "aws_lb_listener" "http_forward" {
-  count = var.certificate_arn == "" ? 1 : 0
-
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.certificate_arn
 
   default_action {
     type             = "forward"
@@ -79,11 +63,50 @@ resource "aws_lb_listener" "http_forward" {
   }
 }
 
+resource "aws_lb_listener_rule" "api_routing" {
+  # Tworzymy regułę tylko jeśli istnieje listener HTTPS
+  count = var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 100 # Priorytet (niższy numer = ważniejsza)
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = var.certificate_arn != "" ? "redirect" : "forward"
+    
+    dynamic "redirect" {
+      for_each = var.certificate_arn != "" ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+
+    target_group_arn = var.certificate_arn != "" ? null : aws_lb_target_group.frontend.arn
+  }
+}
+
 resource "aws_lb_listener_rule" "api_routing_http" {
   count = var.certificate_arn == "" ? 1 : 0
 
-  # Odwołujemy się do listenera B (http_forward)
-  listener_arn = aws_lb_listener.http_forward[0].arn
+  listener_arn = aws_lb_listener.http.arn
   priority     = 100
 
   action {

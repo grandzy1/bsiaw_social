@@ -63,6 +63,10 @@ jobs:
         run: sleep 30
 
       # 4. DAST (Dynamic Analysis) - Atakujemy localhost:3000
+
+      - name: Fix permissions for ZAP
+        run: chmod -R 777 .
+
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.11.0
         with:
@@ -70,6 +74,21 @@ jobs:
           # Nie failuj builda na warningach, tylko na błędach
           fail_action: false 
           cmd_options: '-a'
+
+
+        # 5. Upload raportów
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-report
+          path: |
+            bandit-report.json
+            zap_report.json
+            zap_resport.html
+            zap_report.me
+
 
       - name: Stop Containers
         if: always()

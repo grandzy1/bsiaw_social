@@ -141,8 +141,8 @@ jobs:
       - name: Build and Push Backend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # UWAGA: Nazwa repozytorium musi zgadzać się z ecr.tf (bsiaw-social-backend-v2)
-          ECR_REPO: bsiaw-social-backend-v2
+          # UWAGA: Nazwa repozytorium musi zgadzać się z ecr.tf (ycom-backend-v2)
+          ECR_REPO: ycom-backend-v2
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG ./backend
@@ -155,7 +155,7 @@ jobs:
       - name: Build and Push Frontend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPO: bsiaw-social-frontend-v2
+          ECR_REPO: ycom-frontend-v2
           IMAGE_TAG: ${{ github.sha }}
           # Używamy adresu ALB pobranego z Terraforma (dla HTTPS dodaj https://)
           API_URL: "https://${{ env.ALB_DNS }}/api" 

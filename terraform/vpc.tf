@@ -8,11 +8,11 @@ module "vpc" {
   azs = ["us-east-1a", "us-east-1b"]
 
   # 1. WARSTWA PUBLICZNA (Public Subnets)
-  public_subnets = ["10.0.101.0/24", "10.0.102.0/24"]
+  public_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
   public_subnet_names = ["ycom-public1", "ycom-public2"]
 
   # 2. WARSTWA PRYWATNA APLIKACJI (Private Subnets)
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  private_subnets = ["10.0.101.0/24", "10.0.102.0/24"]
   private_subnet_names = ["ycom-app-private1", "ycom-app-private2"]
 
   # 3. WARSTWA BAZODANOWA (Database Subnets)

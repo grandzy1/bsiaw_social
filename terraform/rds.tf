@@ -39,5 +39,5 @@ resource "aws_db_instance" "default" {
   skip_final_snapshot     = true # Ważne przy testach (brak snapshota po usunięciu)
   
   # USTAWIĆ NA "TRUE" NA PRODUKCJI !!!!!!
-  deletion_protection = true
+  deletion_protection = false
 }

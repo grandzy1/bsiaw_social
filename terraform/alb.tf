@@ -1,10 +1,16 @@
+data "aws_acm_certificate" "selected" {
+  domain    = "web-y.app" # Wprowadź pełną nazwę domeny
+  statuses  = ["ISSUED"]         # Upewnij się, że jest wydany
+  most_recent = true             # Wybierz najnowszy, jeśli jest ich wiele
+}
+
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb-v2"
   internal           = false
   load_balancer_type = "application"
-  
+
   security_groups    = [aws_security_group.alb_sg.id]
-  
+
   subnets            = module.vpc.public_subnets
 
   tags = {
@@ -49,13 +55,13 @@ resource "aws_lb_target_group" "backend" {
 }
 
 resource "aws_lb_listener" "https" {
-  count = var.certificate_arn != "" ? 1 : 0
+  count = data.aws_acm_certificate.selected.arn != "" ? 1 : 0
 
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = var.certificate_arn
+  certificate_arn   = data.aws_acm_certificate.selected.arn
 
   default_action {
     type             = "forward"
@@ -65,7 +71,7 @@ resource "aws_lb_listener" "https" {
 
 resource "aws_lb_listener_rule" "api_routing" {
   # Tworzymy regułę tylko jeśli istnieje listener HTTPS
-  count = var.certificate_arn != "" ? 1 : 0
+  count = data.aws_acm_certificate.selected.arn != "" ? 1 : 0
 
   listener_arn = aws_lb_listener.https[0].arn
   priority     = 100 # Priorytet (niższy numer = ważniejsza)
@@ -88,10 +94,10 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = var.certificate_arn != "" ? "redirect" : "forward"
-    
+    type = data.aws_acm_certificate.selected.arn != "" ? "redirect" : "forward"
+
     dynamic "redirect" {
-      for_each = var.certificate_arn != "" ? [1] : []
+      for_each = data.aws_acm_certificate.selected.arn != "" ? [1] : []
       content {
         port        = "443"
         protocol    = "HTTPS"
@@ -99,12 +105,12 @@ resource "aws_lb_listener" "http" {
       }
     }
 
-    target_group_arn = var.certificate_arn != "" ? null : aws_lb_target_group.frontend.arn
+    target_group_arn = data.aws_acm_certificate.selected.arn != "" ? null : aws_lb_target_group.frontend.arn
   }
 }
 
 resource "aws_lb_listener_rule" "api_routing_http" {
-  count = var.certificate_arn == "" ? 1 : 0
+  count = data.aws_acm_certificate.selected.arn == "" ? 1 : 0
 
   listener_arn = aws_lb_listener.http.arn
   priority     = 100

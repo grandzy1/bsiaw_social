@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # Zaktualizuj npm
-# RUN npm install -g npm@latest
+RUN npm install -g npm@latest
 
 # Ustaw katalog roboczy
 WORKDIR /app

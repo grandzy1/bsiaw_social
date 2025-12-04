@@ -71,7 +71,13 @@ jobs:
       - name: Build Containers (Local GitHub Environment)
         run: docker compose -p ci build
 
-      # 4. Container Scanning (Trivy Image) - NOWY KROK
+      - name: Debug cross-spawn and glob
+        run: |
+          docker run --rm -it YOUR_IMAGE sh -c "find / -type d -name 'glob' 2>/dev/null"
+          docker run --rm -it YOUR_IMAGE sh -c "find / -type d -name 'cross-spawn' 2>/dev/null"
+
+
+      # 4. Container Scanning (Trivy Image)
       # Skanujemy obrazy zbudowane przed chwilą
       - name: Scan Backend Image (Trivy)
         uses: aquasecurity/trivy-action@0.28.0

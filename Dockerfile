@@ -21,5 +21,8 @@ EXPOSE 3000
 # Ustaw użytkownika o niższych uprawnieniach dla bezpieczeństwa
 USER nextjs
 
-# Uruchom w trybie development
-CMD ["npm", "run", "dev"]
+# Skompiluj projekt
+RUN npm run build
+
+# Uruchom w trybie produkcyjnym
+CMD ["npm", "run", "start"]

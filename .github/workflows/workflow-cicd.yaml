@@ -41,6 +41,17 @@ jobs:
           bandit -r backend/ -x backend/venv/ -f json -o bandit-report.json --exit-zero
           bandit -r backend/ -x backend/venv -lll
 
+      # SAST Frontend - Kompleksowy skan (Zależności + Sekrety + Config)
+      - name: Run Trivy Vulnerability Scanner (Frontend)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend/'
+          hide-progress: false
+          format: 'table'
+          scanners: 'vuln,secret,config'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
       # 3. Uruchomienie środowiska testowego (Docker Compose)
       - name: Create .env for testing

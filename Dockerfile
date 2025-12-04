@@ -13,8 +13,7 @@ RUN npm ci
 COPY . .
 
 # Stwórz użytkownika nextjs
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN chown -R nextjs:nextjs /app
 
 # Expose port
 EXPOSE 3000

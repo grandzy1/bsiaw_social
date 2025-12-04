@@ -58,14 +58,14 @@ jobs:
           cp .env backend/.env
 
       - name: Build Containers (Local GitHub Environment)
-        run: docker compose up -d --build
+        run: docker compose -p ci build
 
       # 4. Container Scanning (Trivy Image) - NOWY KROK
       # Skanujemy obrazy zbudowane przed chwilą
       - name: Scan Backend Image (Trivy)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: 'ycom_backend'
+          image-ref: 'ci-backend:latest'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -75,7 +75,7 @@ jobs:
       - name: Scan Frontend Image (Trivy)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: 'ycom_frontend'
+          image-ref: 'ci-frontend:latest'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -83,7 +83,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Start Containers (Local GitHub Environment)
-        run: docker compose up -d --build
+        run: docker compose -p ci up -d
 
       - name: Wait for services to be ready
         run: sleep 30

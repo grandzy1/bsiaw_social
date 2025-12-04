@@ -13,13 +13,13 @@ RUN npm ci
 COPY . .
 
 # Stwórz użytkownika nextjs
-RUN chown -R nextjs:nextjs /app
+RUN chown -R node:node /app
 
 # Expose port
 EXPOSE 3000
 
 # Ustaw użytkownika o niższych uprawnieniach dla bezpieczeństwa
-USER nextjs
+USER node
 
 # Skompiluj projekt
 RUN npm run build

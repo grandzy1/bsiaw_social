@@ -71,11 +71,6 @@ jobs:
       - name: Build Containers (Local GitHub Environment)
         run: docker compose -p ci build
 
-      - name: Debug cross-spawn and glob
-        run: |
-          docker run --rm ci-frontend:latest sh -c "find / -type d -name 'glob' 2>/dev/null" || true
-          docker run --rm ci-frontend:latest sh -c "find / -type d -name 'cross-spawn' 2>/dev/null" || true
-
 
       # 4. Container Scanning (Trivy Image)
       # Skanujemy obrazy zbudowane przed chwilą
@@ -123,7 +118,7 @@ jobs:
             -w report.md \
             -J report.json \
             -a -j \
-            -I"
+            -I
 
 
         # 5. Upload raportów

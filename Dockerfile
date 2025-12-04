@@ -12,17 +12,8 @@ RUN npm ci
 # Skopiuj resztę aplikacji
 COPY . .
 
-# Stwórz użytkownika nextjs
-RUN chown -R node:node /app
-
 # Expose port
 EXPOSE 3000
 
-# Ustaw użytkownika o niższych uprawnieniach dla bezpieczeństwa
-USER node
-
-# Skompiluj projekt
-RUN npm run build
-
-# Uruchom w trybie produkcyjnym
-CMD ["npm", "run", "start"]
+# Uruchom w trybie development
+CMD ["npm", "run", "dev"]

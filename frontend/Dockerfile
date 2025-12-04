@@ -12,11 +12,14 @@ RUN npm ci
 # Skopiuj resztę aplikacji
 COPY . .
 
+# Stwórz użytkownika nextjs
+RUN chown -R node:node /app
+
 # Expose port
 EXPOSE 3000
 
-# Uruchom w trybie development
-#CMD ["npm", "run", "dev"]
+# Ustaw użytkownika o niższych uprawnieniach dla bezpieczeństwa
+USER node
 
 # Deklaracja argumentu do przekazania przy budowaniu (docker build --build-arg <domena/ip>)
 ARG NEXT_PUBLIC_API_URL

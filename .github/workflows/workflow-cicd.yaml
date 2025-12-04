@@ -65,7 +65,7 @@ jobs:
       - name: Scan Backend Image (Trivy)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: 'ycom-backend:latest'
+          image-ref: 'ycom_backend'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -75,7 +75,7 @@ jobs:
       - name: Scan Frontend Image (Trivy)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: 'ycom-frontend:latest'
+          image-ref: 'ycom_frontend'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true

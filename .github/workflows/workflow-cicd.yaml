@@ -73,8 +73,8 @@ jobs:
 
       - name: Debug cross-spawn and glob
         run: |
-          docker run --rm -it YOUR_IMAGE sh -c "find / -type d -name 'glob' 2>/dev/null"
-          docker run --rm -it YOUR_IMAGE sh -c "find / -type d -name 'cross-spawn' 2>/dev/null"
+          docker run --rm -it ci-frontend:latest sh -c "find / -type d -name 'glob' 2>/dev/null"
+          docker run --rm -it ci-frontend:latest sh -c "find / -type d -name 'cross-spawn' 2>/dev/null"
 
 
       # 4. Container Scanning (Trivy Image)

@@ -127,13 +127,25 @@ function CreatePost({ onPostCreated, currentUser }: { onPostCreated: () => void,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    const trimmedContent = content.trim();
+
+    if (!trimmedContent) return;
+
+    // 1. Zdefiniuj wzorzec niebezpiecznych tagów (XSS / Injection)
+    // Flaga 'i' oznacza ignorowanie wielkości liter (wyłapie <IFRAME> i <iframe>)
+    const dangerousPatterns = /<iframe|<script|<object|<embed|<form/i;
+
+    // 2. Sprawdź, czy treść zawiera niedozwolone elementy
+    if (dangerousPatterns.test(trimmedContent)) {
+      setError('Treść zawiera niedozwolone elementy HTML (np. iframe lub skrypty).');
+      return; // Przerwij wysyłanie
+    }
 
     setIsSubmitting(true);
     setError('');
 
     try {
-      await api.posts.create(content);
+      await api.posts.create(trimmedContent);
       setContent('');
       onPostCreated();
     } catch (err: any) {

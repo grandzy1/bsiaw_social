@@ -7,14 +7,15 @@ const nextConfig = {
         source: '/:path*',
         headers: [
           {
-            key: 'Content-Security-Policy-Report-Only', 
+            key: 'Content-Security-Policy', 
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com;
+              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://challenges.cloudflare.com https://ajax.cloudflare.com;
               style-src 'self' 'unsafe-inline';
-              img-src 'self' data: https: http://localhost:8000;
-              connect-src 'self' https://web-y.app http://localhost:8000 http://127.0.0.1:8000;
+              img-src 'self' data: https:;
+              connect-src 'self' https://web-y.app https://challenges.cloudflare.com;
               font-src 'self' data:;
+              frame-src https://challenges.cloudflare.com;
               object-src 'none';
               base-uri 'self';
               form-action 'self';

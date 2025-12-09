@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             // Poniżej znajduje się wartość polityki (jedna długa linia)
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;",
+            value: "script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;",
           },
           {
             key: 'X-Content-Type-Options',

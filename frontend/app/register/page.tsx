@@ -38,8 +38,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Hasło musi mieć co najmniej 8 znaków');
+    if (password.length < 12) {
+      setError('Hasło musi mieć co najmniej 12 znaków');
       return;
     }
 
@@ -146,7 +146,7 @@ export default function RegisterPage() {
               disabled={isLoading}
               minLength={8}
             />
-            <p className="text-xs text-gray-500 mt-1">Minimum 8 znaków</p>
+            <p className="text-xs text-gray-500 mt-1">Minimum 12 znaków</p>
           </div>
 
           <div>

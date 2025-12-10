@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MaxLengthValidator
-
+from django.db.models import F
 
 class Profile(models.Model):
     """Rozszerzony profil użytkownika"""
@@ -93,15 +93,13 @@ from django.dispatch import receiver
 def increment_likes_count(sender, instance, created, **kwargs):
     """Zwiększ licznik polubień po dodaniu"""
     if created:
-        instance.post.likes_count = instance.post.likes.count()
-        instance.post.save(update_fields=['likes_count'])
+        Post.objects.filter(id=instance.post_id).update(likes_count=F('likes_count') + 1)
 
 
 @receiver(post_delete, sender=Like)
 def decrement_likes_count(sender, instance, **kwargs):
     """Zmniejsz licznik polubień po usunięciu"""
-    instance.post.likes_count = instance.post.likes.count()
-    instance.post.save(update_fields=['likes_count'])
+    Post.objects.filter(id=instance.post_id).update(likes_count=F('likes_count') - 1)
 
 
 @receiver(post_save, sender=Comment)

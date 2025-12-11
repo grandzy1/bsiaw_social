@@ -133,6 +133,8 @@ resource "aws_ecs_task_definition" "backend" {
         "awslogs-group"         = aws_cloudwatch_log_group.backend_logs.name
         "awslogs-region"        = "us-east-1"
         "awslogs-stream-prefix" = "ecs"
+        "mode"                  = "non-blocking"
+        "max-buffer-size"       = "25m"
       }
     }
   }])
@@ -167,6 +169,8 @@ resource "aws_ecs_task_definition" "frontend" {
         "awslogs-group"         = aws_cloudwatch_log_group.frontend_logs.name
         "awslogs-region"        = "us-east-1"
         "awslogs-stream-prefix" = "ecs"
+        "mode"                  = "non-blocking"
+        "max-buffer-size"       = "25m"
       }
     }
   }])

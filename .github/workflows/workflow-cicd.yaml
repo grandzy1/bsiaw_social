@@ -20,8 +20,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # WAŻNE: Pobiera całą historię gita dla TruffleHoga
 
-      # 1. Setup
+      # --- 1. SKANOWANIE SEKRETÓW (TruffleHog) ---
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      # --- 2. SKANOWANIE INFRASTRUKTURY (Checkov) ---
+      - name: Run Checkov on Terraform
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          # soft_fail: true -> Błędy nie zatrzymają pipeline'u (dobre na start)
+          # soft_fail: false -> Błędy zablokują deploy (zalecane docelowo)
+          soft_fail: true 
+          output_format: cli
+          output_file_path: checkov_report.txt
+
+      # --- 3. SETUP ŚRODOWISKA ---
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -32,7 +55,7 @@ jobs:
         with:
           node-version: '22.17'
 
-      # 2. SAST (Static Analysis)
+      # --- 4. SAST (Analiza statyczna kodu) ---
       - name: Install Bandit
         run: pip install bandit
 
@@ -42,7 +65,7 @@ jobs:
           bandit -r backend/ -x backend/venv/ -f json -o bandit-report.json --exit-zero
           bandit -r backend/ -x backend/venv -lll
 
-      # SAST Frontend - Kompleksowy skan (Zależności + Sekrety + Config)
+      # SAST Frontend
       - name: Run Trivy Vulnerability Scanner (Frontend)
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -54,7 +77,7 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
-      # 3. Uruchomienie środowiska testowego (Docker Compose)
+      # --- 5. BUDOWANIE I TESTY INTEGRACYJNE ---
       - name: Create .env for testing
         run: |
           echo "DEBUG=True" >> .env
@@ -72,9 +95,7 @@ jobs:
       - name: Build Containers (Local GitHub Environment)
         run: docker compose -p ci build
 
-
-      # 4. Container Scanning (Trivy Image)
-      # Skanujemy obrazy zbudowane przed chwilą
+      # --- 6. SKANOWANIE KONTENERÓW ---
       - name: Scan Backend Image (Trivy)
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -101,8 +122,7 @@ jobs:
       - name: Wait for services to be ready
         run: sleep 30
 
-      # 4. DAST (Dynamic Analysis) - Atakujemy localhost:3000
-
+      # --- 7. DAST (Dynamiczna analiza - atak na aplikację) ---
       - name: Run ZAP scan
         run: |
           mkdir -p $(pwd)/zap-wrk
@@ -121,9 +141,7 @@ jobs:
             -a -j \
             -I
 
-
-        # 5. Upload raportów
-
+      # --- 8. RAPORTOWANIE ---
       - name: Upload scan results
         if: always()
         uses: actions/upload-artifact@v4
@@ -132,6 +150,7 @@ jobs:
           path: |
             bandit-report.json
             zap-wrk/
+            checkov_report.txt
       
       - name: Create issue from scan
         if: always()
@@ -154,6 +173,8 @@ jobs:
       - name: Stop Containers
         if: always()
         run: docker compose down
+
+
 
   # ------------------------------------------------------------------
   # JOB 2: Deploy na Produkcję (Tylko Main)

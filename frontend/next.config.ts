@@ -13,7 +13,7 @@ const nextConfig = {
               script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://challenges.cloudflare.com https://ajax.cloudflare.com;
               style-src 'self' 'unsafe-inline';
               img-src 'self' data: https:;
-              connect-src 'self' https://web-y.app https://challenges.cloudflare.com;
+              connect-src 'self' https://web-y.app https://challenges.cloudflare.com http://localhost:3000/;
               font-src 'self' data:;
               frame-src https://challenges.cloudflare.com;
               object-src 'none';

@@ -9,6 +9,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  issues: write
 
 jobs:
   # ------------------------------------------------------------------
@@ -37,9 +38,21 @@ jobs:
 
       - name: Run SAST (Bandit) on Backend
         # Skanuje kod w poszukiwaniu luk bezpieczeństwa, pomija venv
-        run: bandit -r backend/ -x backend/venv/ -f json -o bandit-report.json || true
-        # "|| true" sprawia, że pipeline nie wywali się od razu, 
-        # można tu dodać logikę blokowania przy krytycznych błędach.
+        run: |
+          bandit -r backend/ -x backend/venv/ -f json -o bandit-report.json --exit-zero
+          bandit -r backend/ -x backend/venv -lll
+
+      # SAST Frontend - Kompleksowy skan (Zależności + Sekrety + Config)
+      - name: Run Trivy Vulnerability Scanner (Frontend)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend/'
+          hide-progress: false
+          format: 'table'
+          scanners: 'vuln,secret,config'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
       # 3. Uruchomienie środowiska testowego (Docker Compose)
       - name: Create .env for testing
@@ -56,8 +69,34 @@ jobs:
           # Kopiujemy do backendu, bo tam Dockerfile szuka env
           cp .env backend/.env
 
+      - name: Build Containers (Local GitHub Environment)
+        run: docker compose -p ci build
+
+
+      # 4. Container Scanning (Trivy Image)
+      # Skanujemy obrazy zbudowane przed chwilą
+      - name: Scan Backend Image (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'ci-backend:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Scan Frontend Image (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'ci-frontend:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
       - name: Start Containers (Local GitHub Environment)
-        run: docker compose up -d --build
+        run: docker compose -p ci up -d
 
       - name: Wait for services to be ready
         run: sleep 30
@@ -80,8 +119,7 @@ jobs:
             -w report.md \
             -J report.json \
             -a -j \
-            -I \
-            || echo "ZAP scan completed with warnings/errors"
+            -I
 
 
         # 5. Upload raportów
@@ -94,7 +132,24 @@ jobs:
           path: |
             bandit-report.json
             zap-wrk/
-
+      
+      - name: Create issue from scan
+        if: always()
+        run: |
+          if [ -f zap-wrk/report.md ]; then
+            echo "## OWASP ZAP Scan Results" > issue_body.md
+            echo "" >> issue_body.md
+            cat zap-wrk/report.md >> issue_body.md
+            
+            # Create issue via GitHub API
+            gh issue create \
+              --title "DAST Scan Results - $(date +'%Y-%m-%d')" \
+              --body-file issue_body.md \
+              --label "security,dast" \
+              || echo "Could not create issue"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Stop Containers
         if: always()

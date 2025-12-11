@@ -32,13 +32,11 @@ resource "aws_iam_role" "github_actions" {
 
 # --- 3. UPRAWNIENIA (POLICY) ---
 
-data "aws_iam_policy" "existing_custom_policy" {
-  name = "GithubUserPolicy"
-}
+
 
 resource "aws_iam_role_policy_attachment" "github_admin_attach" {
   role       = aws_iam_role.github_actions.name
-  policy_arn = data.aws_iam_policy.existing_custom_policy.arn
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 # --- 4. OUTPUT (Co wkleić do GitHuba) ---

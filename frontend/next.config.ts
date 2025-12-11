@@ -10,12 +10,12 @@ const nextConfig = {
             key: 'Content-Security-Policy', 
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://challenges.cloudflare.com https://ajax.cloudflare.com;
+              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://challenges.cloudflare.com https://ajax.cloudflare.com http://localhost:3000;
               style-src 'self' 'unsafe-inline';
               img-src 'self' data: https:;
-              connect-src 'self' https://web-y.app https://challenges.cloudflare.com http://localhost:3000/;
+              connect-src 'self' https://web-y.app https://challenges.cloudflare.com http://localhost:3000;
               font-src 'self' data:;
-              frame-src https://challenges.cloudflare.com;
+              frame-src https://challenges.cloudflare.com http://localhost:3000;
               object-src 'none';
               base-uri 'self';
               form-action 'self';

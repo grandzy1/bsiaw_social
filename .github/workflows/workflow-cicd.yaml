@@ -234,7 +234,7 @@ jobs:
           ECR_REPO: ycom-frontend-v2
           IMAGE_TAG: ${{ github.sha }}
           # Używamy adresu ALB pobranego z Terraforma (dla HTTPS dodaj https://)
-          API_URL: "https://${{ env.ALB_DNS }}/api" 
+          API_URL: "https://web-y.app/api" 
         run: |
           docker build --build-arg NEXT_PUBLIC_API_URL=$API_URL -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG ./frontend
           docker tag $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:latest

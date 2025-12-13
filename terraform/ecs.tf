@@ -99,33 +99,18 @@ resource "aws_ecs_task_definition" "backend" {
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
-
-  volume {
-    name = "tmp_volume"
-  }
-
-
   container_definitions = jsonencode([{
     name      = "backend"
     readonlyRootFilesystem = true
-    image     = "${aws_ecr_repository.backend.repository_url}:latest"
+    image     = "${aws_ecr_repository.backend.repository_url}:latest" 
     # image = "875707075546.dkr.ecr.us-east-1.amazonaws.com/webapp/backend:secure-proxy" # temporary do sprawdzenia działania terraforma
     essential = true
-
-    mountPoints = [
-      {
-        sourceVolume  = "tmp_volume"
-        containerPath = "/tmp"
-        readOnly      = false
-      }
-    ]
-
     portMappings = [{
       containerPort = 8000
       hostPort      = 8000
       protocol      = "tcp"
     }]
-
+    
     environment = [
       { name = "DB_HOST", value = aws_db_instance.default.address },
       { name = "DB_PORT", value = "5432" },
@@ -175,8 +160,8 @@ resource "aws_ecs_task_definition" "frontend" {
       hostPort      = 3000
       protocol      = "tcp"
     }]
-
-    environment = []
+    
+    environment = [] 
 
     logConfiguration = {
       logDriver = "awslogs"

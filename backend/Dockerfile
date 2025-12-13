@@ -44,10 +44,12 @@ USER appuser
 RUN mkdir -p /app/staticfiles /app/media
 RUN python manage.py collectstatic --noinput
 
+RUN mkdir -p /app/tmp
+
 
 # Ekspozycja portu
 EXPOSE 8000
 
 # Komenda domyślna
 # ZMIANA: 'backend.wsgi:application' -> 'project_config.wsgi:application'
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "project_config.wsgi:application", "--worker-tmp-dir", "/tmp"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "project_config.wsgi:application", "--worker-tmp-dir", "/app/tmp"]

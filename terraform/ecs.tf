@@ -101,7 +101,7 @@ resource "aws_ecs_task_definition" "backend" {
 
   container_definitions = jsonencode([{
     name      = "backend"
-    readonlyRootFilesystem = true
+#     readonlyRootFilesystem = true
     image     = "${aws_ecr_repository.backend.repository_url}:latest" 
     # image = "875707075546.dkr.ecr.us-east-1.amazonaws.com/webapp/backend:secure-proxy" # temporary do sprawdzenia działania terraforma
     essential = true

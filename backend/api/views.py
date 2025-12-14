@@ -9,8 +9,8 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
-# Importujemy ustawienia
 from django.conf import settings
+import logging
 
 from .models import Profile, Post, Like, Comment
 from .serializers import (
@@ -18,6 +18,7 @@ from .serializers import (
     PostSerializer, PostCreateSerializer, CommentSerializer
 )
 
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
@@ -29,6 +30,8 @@ def register(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+
+        logger.info(f"AUDIT: Zarejestrowano nowego użytkownika: {user.username} (ID: {user.id}, Email: {user.email})")
         
         # Generuj JWT tokens
         refresh = RefreshToken.for_user(user)
@@ -44,7 +47,7 @@ def register(request):
             'access': access_token,
             'refresh': refresh_token
         }, status=status.HTTP_201_CREATED)
-    
+    logger.warning(f"SECURITY: Nieudana próba rejestracji. Dane: {request.data.get('username')}, Błędy: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -67,6 +70,7 @@ def login(request):
     user = authenticate(username=username, password=password)
     
     if user is None:
+        logger.warning(f"SECURITY: Nieudane logowanie dla użytkownika: {username}")
         return Response(
             {'error': 'Nieprawidłowe dane logowania'},
             status=status.HTTP_401_UNAUTHORIZED
@@ -78,7 +82,9 @@ def login(request):
     refresh_token = str(refresh)
     
     profile_data = ProfileSerializer(user.profile).data
-    
+
+    logger.info(f"AUDIT: Zalogowano użytkownika: {user.username} (ID: {user.id})")
+
     # POPRAWKA: Zwracamy tokeny w odpowiedzi
     return Response({
         'user': profile_data,
@@ -99,10 +105,15 @@ def logout(request):
     
     if not refresh_token:
         return Response({'error': 'Refresh token jest wymagany'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+    user_info = request.user.username if request.user.is_authenticated else "Nieznany/Wygasła sesja"
+
     try:
         token = RefreshToken(refresh_token)
         token.blacklist()
+
+        logger.info(f"AUDIT: Wylogowano użytkownika: {user_info}")
+
         return Response({'message': 'Wylogowano pomyślnie'}, status=status.HTTP_200_OK)
     except TokenError:
         return Response({'error': 'Nieprawidłowy lub wygasły refresh token'}, status=status.HTTP_400_BAD_REQUEST)
@@ -164,16 +175,22 @@ class PostViewSet(viewsets.ModelViewSet):
         return context
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        instance = serializer.save(author=self.request.user)
+        logger.info(f"AUDIT: Użytkownik {self.request.user.username} utworzył POST (ID: {instance.id}). Treść: '{instance.content[:30]}...'")
 
     def destroy(self, request, *args, **kwargs):
         post = self.get_object()
+        post_id = post.id
+
         if post.author != request.user and not request.user.is_staff:
             return Response(
                 {'error': 'Nie masz uprawnień do usunięcia tego posta'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return super().destroy(request, *args, **kwargs)
+
+        response = super().destroy(request, *args, **kwargs)
+        logger.info(f"AUDIT: Użytkownik {request.user.username} usunął POST (ID: {post_id})")
+        return response
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, pk=None):
@@ -182,6 +199,7 @@ class PostViewSet(viewsets.ModelViewSet):
         
         post.refresh_from_db()
         serializer = self.get_serializer(post)
+        logger.info(f"AUDIT: Użytkownik {request.user.username} POLUBIŁ post {post.id} (Autor posta: {post.author.username})")
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
@@ -191,6 +209,7 @@ class PostViewSet(viewsets.ModelViewSet):
         
         post.refresh_from_db()
         serializer = self.get_serializer(post)
+        logger.info(f"AUDIT: Użytkownik {request.user.username} COFNĄŁ POLUBIENIE posta {post.id}")
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -201,16 +220,23 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        instance = serializer.save(author=self.request.user)
+        logger.info(f"AUDIT: Użytkownik {self.request.user.username} skomentował POST {instance.post.id}. Treść: '{instance.content[:30]}...'")
 
     def destroy(self, request, *args, **kwargs):
         comment = self.get_object()
+        comment_id = comment.id
+        post_id = comment.post_id
+
         if comment.author != request.user and not comment.author.is_staff:
             return Response(
                 {'error': 'Nie masz uprawnień do usunięcia tego komentarza'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return super().destroy(request, *args, **kwargs)
+        
+        response = super().destroy(request, *args, **kwargs)
+        logger.info(f"AUDIT: Użytkownik {request.user.username} usunął KOMENTARZ {comment_id} z posta {post_id}")
+        return response
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -21,8 +21,6 @@ export interface Profile {
 export interface AuthResponse {
   user: Profile;
   message: string;
-  access?: string;
-  refresh?: string;
 }
 
 export interface Post {
@@ -54,34 +52,12 @@ class APIError extends Error {
   }
 }
 
-// --- Zarządzanie Tokenami (localStorage) ---
+// --- Zarządzanie Tokenami ---
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
 // Sprawdzamy, czy jesteśmy w przeglądarce
 const isBrowser = () => typeof window !== 'undefined';
-
-const setTokens = (access: string, refresh: string) => {
-  if (isBrowser()) {
-    localStorage.setItem(ACCESS_TOKEN_KEY, access);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-  }
-};
-
-const getAccessToken = (): string | null => {
-  return isBrowser() ? localStorage.getItem(ACCESS_TOKEN_KEY) : null;
-};
-
-const getRefreshToken = (): string | null => {
-  return isBrowser() ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
-};
-
-const clearTokens = () => {
-  if (isBrowser()) {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  }
-};
 
 // --- CSRF (Nadal potrzebne dla POST/PUT/DELETE) ---
 let csrfToken: string | null = null;
@@ -146,52 +122,46 @@ async function authenticatedFetch(
     }
   }
   
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers.set('Authorization', `Bearer ${accessToken}`);
-  }
+  const fetchOptions = { 
+    ...options, 
+    headers, 
+    credentials: 'include' as RequestCredentials // KLUCZOWE: Wyślij ciasteczka do serwera
+  };
 
   let response = await fetch(url, { ...options, headers, credentials: 'include' });
 
-  if (response.status === 401 && !url.includes('/api/auth/login') && !isRefreshing) {
-    const refreshToken = getRefreshToken();
-
-    if (!refreshToken) {
-      clearTokens();
-      // POPRAWKA: Jeśli to GET (np. getCurrentUser), po prostu zgłoś błąd.
-      // Strona (np. page.tsx) to obsłuży i pokaże widok dla gościa.
-      // Przekieruj tylko jeśli to było żądanie POST/itp., które faktycznie zawiodło.
-      if (method !== 'GET') {
-        window.location.href = '/login';
-      }
-      throw new APIError(401, { detail: 'Brak refresh tokena.' });
-    }
-
-    // Spróbuj odświeżyć token
+  // Obsługa wygaśnięcia Access Tokena (401)
+  if (response.status === 401 && !url.includes('/api/auth/login') && !url.includes('/api/auth/refresh') && !isRefreshing) {
     isRefreshing = true;
+    
     try {
+      // Próba odświeżenia tokena.
+      // Nie wysyłamy nic w body. Przeglądarka wyśle ciasteczko 'refresh_token'.
       const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: refreshToken }),
-        credentials: 'omit', 
+        credentials: 'include', 
       });
 
-      if (!refreshResponse.ok) {
-        throw new Error('Odświeżenie tokena nie powiodło się');
+      if (refreshResponse.ok) {
+        // Sukces! Serwer ustawił nowe ciasteczko 'access_token' w tle.
+        // Po prostu ponawiamy oryginalne zapytanie.
+        response = await fetch(url, fetchOptions);
+      } else {
+        // Refresh się nie udał (np. token wygasł).
+        // POPRAWKA: Przekieruj TYLKO jeśli nie jesteśmy już na stronie logowania/rejestracji
+        if (typeof window !== 'undefined') {
+           const path = window.location.pathname;
+           if (path !== '/login' && path !== '/register') {
+               window.location.href = '/login';
+           }
+        }
+        // Nadal rzucamy błąd, aby komponent (np. Sidebar) wiedział, że nie ma usera
+        throw new APIError(401, { detail: 'Sesja wygasła.' });
       }
-
-      const { access: newAccessToken } = await refreshResponse.json();
-      localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
-      
-      headers.set('Authorization', `Bearer ${newAccessToken}`);
-      response = await fetch(url, { ...options, headers, credentials: 'include' });
-
-    } catch (refreshError) {
-      clearTokens();
-      // TUTAJ przekierowanie jest POPRAWNE, bo sesja wygasła
-      window.location.href = '/login'; 
-      throw new APIError(401, { detail: 'Sesja wygasła.' });
+    } catch (error) {
+      // Jeśli refresh rzucił wyjątek sieciowy lub inny
+      throw error;
     } finally {
       isRefreshing = false;
     }
@@ -215,10 +185,7 @@ export const api = {
         body: JSON.stringify({ username, email, password, password2: password }),
       });
       const data = await handleResponse<AuthResponse>(response);
-      
-      if (data.access && data.refresh) {
-        setTokens(data.access, data.refresh);
-      }
+  
       return data;
     },
 
@@ -235,26 +202,23 @@ export const api = {
       });
       const data = await handleResponse<AuthResponse>(response);
       
-      if (data.access && data.refresh) {
-        setTokens(data.access, data.refresh);
-      }
       return data;
     },
 
     async logout(): Promise<void> {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        try {
-          await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
-            method: 'POST',
-            body: JSON.stringify({ refresh: refreshToken }),
-          });
-        } catch (error) {
-          console.error("Błąd podczas wylogowania na backendzie", error);
-        }
+      // Wylogowanie to teraz tylko strzał do API.
+      // Serwer wyczyści ciasteczka (Set-Cookie z datą w przeszłości).
+      try {
+        await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
+          method: 'POST',
+          // Nie musimy wysyłać refresh tokena w body, serwer weźmie go z ciastka
+        });
+      } catch (error) {
+        console.error("Błąd podczas wylogowania na backendzie", error);
       }
-      clearTokens();
+      
       csrfToken = null;
+      // ZMIANA: Nie musimy czyścić localStorage.
     },
 
     async getCurrentUser(): Promise<Profile> {

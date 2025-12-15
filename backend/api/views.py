@@ -3,6 +3,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
@@ -20,13 +21,35 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+# Funckja pomocnicza do ustawiania ciasteczek
+def set_auth_cookies(response, access_token, refresh_token):
+    # Ustawienia bezpieczeństwa ciasteczek
+    cookie_params = {
+        'httponly': True,  # JS nie ma dostępu (KLUCZOWE!)
+        'samesite': 'Lax', # Chroni przed CSRF
+        'secure': not settings.DEBUG, # True na produkcji (HTTPS), False lokalnie
+        'max_age': 3600 * 24 * 7, # 7 dni
+    }
+    
+    # Ustawiamy access token
+    response.set_cookie(
+        'access_token', 
+        access_token, 
+        **cookie_params
+    )
+    
+    # Ustawiamy refresh token
+    response.set_cookie(
+        'refresh_token', 
+        refresh_token, 
+        **cookie_params
+    )
+    return response
+
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def register(request):
-    """
-    Rejestracja nowego użytkownika.
-    POPRAWKA: Zwraca tokeny w ciele JSON, zamiast w cookies.
-    """
+    # Rejestracja użytkownika
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
@@ -40,13 +63,14 @@ def register(request):
         
         profile_data = ProfileSerializer(user.profile).data
         
-        # POPRAWKA: Zwracamy tokeny w odpowiedzi
-        return Response({
+        response = Response({
             'user': profile_data,
             'message': 'Użytkownik utworzony pomyślnie',
-            'access': access_token,
-            'refresh': refresh_token
         }, status=status.HTTP_201_CREATED)
+
+        set_auth_cookies(response, access_token, refresh_token)
+        return response
+
     logger.warning(f"SECURITY: Nieudana próba rejestracji. Dane: {request.data.get('username')}, Błędy: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -54,10 +78,7 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def login(request):
-    """
-    Logowanie użytkownika.
-    POPRAWKA: Zwraca tokeny w ciele JSON, zamiast w cookies.
-    """
+    # Logowanie użytkownika
     username = request.data.get('username')
     password = request.data.get('password')
     
@@ -85,48 +106,87 @@ def login(request):
 
     logger.info(f"AUDIT: Zalogowano użytkownika: {user.username} (ID: {user.id})")
 
-    # POPRAWKA: Zwracamy tokeny w odpowiedzi
-    return Response({
+    # Tworzymy odpowiedź
+    response = Response({
         'user': profile_data,
         'message': 'Zalogowano pomyślnie',
-        'access': access_token,
-        'refresh': refresh_token
+        # Nie zwracamy tokenów
     })
+
+    # Doczepiamy ciasteczka
+    set_auth_cookies(response, access_token, refresh_token)
+
+    return response
 
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny]) # Zezwól każdemu, aby mógł się wylogować (wysłać token do blacklisty)
 def logout(request):
     """
-    Wylogowanie - blacklist refresh token.
-    POPRAWKA: Oczekuje 'refresh_token' w ciele JSON.
+    Wylogowanie w oparciu o ciasteczka.
+    1. Pobiera refresh token z ciasteczka (jeśli jest).
+    2. Wrzuca go na czarną listę.
+    3. Usuwa ciasteczka access i refresh z przeglądarki.
     """
-    refresh_token = request.data.get('refresh')
-    
-    if not refresh_token:
-        return Response({'error': 'Refresh token jest wymagany'}, status=status.HTTP_400_BAD_REQUEST)
-
+    # Przygotuj odpowiedź i pobierz info o użytkowniku (do logów)
+    response = Response({'message': 'Wylogowano pomyślnie'}, status=status.HTTP_200_OK)
     user_info = request.user.username if request.user.is_authenticated else "Nieznany/Wygasła sesja"
 
-    try:
-        token = RefreshToken(refresh_token)
-        token.blacklist()
+    # Spróbuj pobrać refresh token z ciasteczka, aby go zablokować
+    refresh_token = request.COOKIES.get('refresh_token')
 
-        logger.info(f"AUDIT: Wylogowano użytkownika: {user_info}")
+    if refresh_token:
+        try:
+            # Tworzymy obiekt tokena i wrzucamy na czarną listę w bazie danych
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except (TokenError, Exception):
+            # Jeśli token jest już nieważny lub zły, ignorujemy to. Użytkownik i tak chce się wylogować.
+            pass
 
-        return Response({'message': 'Wylogowano pomyślnie'}, status=status.HTTP_200_OK)
-    except TokenError:
-        return Response({'error': 'Nieprawidłowy lub wygasły refresh token'}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception:
-        return Response({'error': 'Wystąpił błąd podczas wylogowania'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #  Usuń ciasteczka w przeglądarce
+    response.delete_cookie('access_token')
+    response.delete_cookie('refresh_token')
 
+    logger.info(f"AUDIT: Wylogowano użytkownika: {user_info}")
 
-# Ta niestandardowa funkcja nie jest już potrzebna, użyjemy standardowego widoku simplejwt
-# @api_view(['POST'])
-# @permission_classes([permissions.AllowAny])
-# def refresh_token(request):
-#     ...
+    return response
 
+# Nowy widok odświeżania tokena (zastępuje TokenRefreshView z urls.py)
+class CookieTokenRefreshView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        # Pobierz refresh token z ciasteczka
+        refresh_token = request.COOKIES.get('refresh_token')
+        user_info = request.user.username if request.user.is_authenticated else "Nieznany/Wygasła sesja"
+
+        if not refresh_token:
+            return Response({'error': 'Brak refresh tokena'}, status=401)
+
+        try:
+            # Używamy SimpleJWT do odświeżenia
+            refresh = RefreshToken(refresh_token)
+            
+            # Nowy access token
+            new_access_token = str(refresh.access_token)
+
+            response = Response({'message': 'Token odświeżony'})
+            logger.info(f"AUDIT: Odświeżono access token dla użytkownika: {user_info}")
+
+            # Nadpisz ciasteczko access_token
+            response.set_cookie(
+                'access_token',
+                new_access_token,
+                httponly=True,
+                samesite='Lax',
+                secure=not settings.DEBUG, # Zmienić na produkcji!!!!!!!!!1
+                max_age=3600 # 60 minut
+            )
+            return response
+            
+        except TokenError:
+            return Response({'error': 'Token nieważny'}, status=401)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])

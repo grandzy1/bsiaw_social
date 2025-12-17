@@ -28,6 +28,9 @@ COPY --chown=appuser:appgroup . .
 # 6. Entrypoint (musi być wykonywalny)
 RUN chmod +x /app/entrypoint.sh && chown appuser:appgroup /app/entrypoint.sh
 
+# 7. zmiana permisji na /tmp 
+RUN chmod 1777 /tmp
+
 # 7. PRZEŁĄCZENIE NA UŻYTKOWNIKA
 USER appuser
 

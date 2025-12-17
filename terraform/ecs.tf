@@ -98,6 +98,9 @@ resource "aws_ecs_task_definition" "backend" {
   memory                   = 1024
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+  volume {
+    name = "temp_storage"
+  }
 
   container_definitions = jsonencode([{
     name      = "backend"

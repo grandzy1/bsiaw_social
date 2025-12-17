@@ -1,55 +1,37 @@
 FROM python:3.11-slim
 
-# Utwórz grupę i użytkownika systemowego
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# 1. Tworzymy grupę oraz użytkownika aplikacji  
+RUN groupadd -g 1000 appgroup && \
+    useradd -u 1000 -g appgroup appuser
 
 WORKDIR /app
 
-# Zmienne środowiskowe
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Instalacja zależności systemowych
-RUN apt-get update && apt-get install -y --no-install-recommends\
-    postgresql-client \
-    build-essential \
-    libpq-dev \
+# 2. Instalacja zależności systemowych (jako root)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Kopiowanie requirements
-COPY requirements.txt .
+# 3. Przygotowanie folderów ZANIM przełączymy użytkownika
+# Tworzymy je i od razu oddajemy appuserowi
+RUN mkdir -p /app/staticfiles /app/media /app/tmp && \
+    chown -R appuser:appgroup /app
 
-# Instalacja zależności Pythona
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# 4. Instalacja zależności Pythona
+# (Robimy to przed kopiowaniem kodu, aby lepiej wykorzystać cache)
+COPY --chown=appuser:appgroup requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Kopiowanie aplikacji
-COPY . .
+# 5. Kopiowanie reszty aplikacji
+COPY --chown=appuser:appgroup . .
 
-# Migracje
-# 1. Kopiujemy skrypt entrypoint
-COPY entrypoint.sh /app/
-# 2. Nadajemy mu uprawnienia do uruchomienia
-RUN chmod +x /app/entrypoint.sh
-# 3. Ustawiamy go jako entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
+# 6. Entrypoint (musi być wykonywalny)
+RUN chmod +x /app/entrypoint.sh && chown appuser:appgroup /app/entrypoint.sh
 
-# Przekazujemy własność plików użytkownikowi appuser
-RUN chown -R appuser:appgroup /app
-
-# Przełączamy się na zwykłego użytkownika
+# 7. PRZEŁĄCZENIE NA UŻYTKOWNIKA
 USER appuser
 
-# Tworzenie katalogów dla static i media
-RUN mkdir -p /app/staticfiles /app/media
-RUN python manage.py collectstatic --noinput
-
-RUN mkdir -p /app/tmp
-
-
-# Ekspozycja portu
 EXPOSE 8000
 
-# Komenda domyślna
-# ZMIANA: 'backend.wsgi:application' -> 'project_config.wsgi:application'
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "project_config.wsgi:application", "--worker-tmp-dir", "/app/tmp"]

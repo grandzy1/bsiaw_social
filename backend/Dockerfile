@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 3. Przygotowanie folderów ZANIM przełączymy użytkownika
 # Tworzymy je i od razu oddajemy appuserowi
-RUN mkdir -p /app/staticfiles /app/media /app/tmp && \
+RUN mkdir -p /app/staticfiles /app/media && \
     chown -R appuser:appgroup /app
 
 # 4. Instalacja zależności Pythona
@@ -34,4 +34,4 @@ USER appuser
 EXPOSE 8000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "project_config.wsgi:application", "--worker-tmp-dir", "/app/tmp"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "project_config.wsgi:application"]

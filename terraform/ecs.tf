@@ -98,6 +98,9 @@ resource "aws_ecs_task_definition" "backend" {
   memory                   = 1024
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+  volume {
+    name = "temp_storage"
+  }
 
   container_definitions = jsonencode([{
     name      = "backend"
@@ -110,6 +113,14 @@ resource "aws_ecs_task_definition" "backend" {
       hostPort      = 8000
       protocol      = "tcp"
     }]
+    # Mapowanie woluminu do /tmp w kontenerze
+mountPoints = [
+        {
+          sourceVolume  = "temp_storage"
+          containerPath = "/tmp"
+          readOnly      = false
+        }
+      ]
     
     environment = [
       { name = "DB_HOST", value = aws_db_instance.default.address },

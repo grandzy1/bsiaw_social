@@ -15,6 +15,10 @@ done
 
 echo "PostgreSQL uruchomiony i gotowy na połączenia."
 
+# Zbieranie statycznych danych
+python manage.py collectstatic --noinput
+
+
 # Uruchomienie migracji
 echo "Uruchamianie migracji..."
 python manage.py migrate

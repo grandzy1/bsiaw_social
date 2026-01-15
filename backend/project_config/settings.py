@@ -40,6 +40,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 # ZMIANA: 'backend.urls' -> 'project_config.urls'
 ROOT_URLCONF = 'project_config.urls'
 
